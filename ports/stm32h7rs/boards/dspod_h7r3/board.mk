@@ -1,0 +1,18 @@
+QSPI_FLASH = IS25LP064A
+
+CFLAGS += \
+  -DSTM32H7R3xx \
+  -DHSE_VALUE=12000000U \
+  -DTINYUF2_LED=1 \
+  -DBOARD_QSPI_FLASH_EN=1 \
+  -DBOARD_AXISRAM_EN=1 \
+  -D$(QSPI_FLASH)\
+  -DBOARD_FLASH_APP_START=0x90000000 \
+  -DTRAP_EXC \
+
+MCU = h7r3xx
+
+LOG = 0
+
+SRC_S += \
+  $(ST_CMSIS)/Source/Templates/gcc/startup_stm32h7r3xx.s
