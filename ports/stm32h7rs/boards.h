@@ -29,9 +29,9 @@
  extern "C" {
 #endif
 
-#include "stm32h7xx.h"
-#include "stm32h7xx_hal_conf.h"
-#include "stm32h7xx_hal.h"
+#include "stm32h7rsxx.h"
+#include "stm32h7rsxx_hal_conf.h"
+#include "stm32h7rsxx_hal.h"
 
 #include "board.h"
 
@@ -60,9 +60,9 @@
 #define AXISRAM_BASE_ADDR 0x24000000U
 
 #define SPI_FLASH_SIZE    8*1024*1024 // 8Mbytes
-#define QSPI_FLASH_SIZE   8*1024*1024 // 8Mbytes
-#define PFLASH_SIZE       128*1024 // 128Kbytes
-#define AXISRAM_SIZE      256*1024 // 512Kbytes
+#define QSPI_FLASH_SIZE   4*1024*1024 // 4Mbytes
+#define PFLASH_SIZE       64*1024 // 64Kbytes
+#define AXISRAM_SIZE      384*1024 // 384Kbytes
 
 #define SPI_FLASH_OFFS  0U
 #define QSPI_FLASH_OFFS 0U

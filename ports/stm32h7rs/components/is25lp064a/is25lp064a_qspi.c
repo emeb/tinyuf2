@@ -1,7 +1,7 @@
 #include "is25lp064a_qspi.h"
 #include "is25lp064a.h"
 #include "qspi_status.h"
-#include "stm32h7xx_hal.h"
+#include "stm32h7rsxx_hal.h"
 #include <stdint.h>
 
 #define MEMORY_FLASH_SIZE 0x800000 /* 8  MBytes*/

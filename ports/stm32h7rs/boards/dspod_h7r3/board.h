@@ -38,7 +38,7 @@ extern "C" {
 #define LED_STATE_ON 1
 
 //--------------------------------------------------------------------+
-// BUTTON
+// BUTTON (tap button on front panel)
 //--------------------------------------------------------------------+
 
 #define BUTTON_PORT GPIOB
@@ -69,7 +69,7 @@ extern "C" {
 
 #define UF2_PRODUCT_NAME USB_MANUFACTURER " " USB_PRODUCT
 #define UF2_BOARD_ID "STM32FH7R3-dspod"
-#define UF2_VOLUME_LABEL "STM32H7R3BOOT"
+#define UF2_VOLUME_LABEL "H7R3BOOT"
 #define UF2_INDEX_URL "https://github.com/emeb/dspod/tree/main/dspod_h7r3"
 
 #define USB_NO_VBUS_PIN 1
@@ -181,7 +181,6 @@ static inline void clock_init(void) {
     HAL_PWREx_EnableUSBVoltageDetector();
 
     /* Peripheral clock enable */
-	__HAL_RCC_USART1_CLK_ENABLE();
     __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
     __HAL_RCC_USBPHYC_CLK_ENABLE();
 }
@@ -190,64 +189,71 @@ static inline void clock_init(void) {
 // QSPI and SPI FLash
 //--------------------------------------------------------------------+
 
-static inline void qspi_flash_init(QSPI_HandleTypeDef *qspiHandle) {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+static inline void qspi_flash_init(XSPI_HandleTypeDef *hxspi) {
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+	RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
-  /** Initializes the peripherals clock
-   */
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_QSPI;
-  PeriphClkInitStruct.QspiClockSelection = RCC_QSPICLKSOURCE_PLL;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK) {
-    Error_Handler();
-  }
+	/* Enable the XSPIM_P1 interface */
+	HAL_PWREx_EnableXSPIM1();
 
-  /* QUADSPI clock enable */
-  __HAL_RCC_QSPI_CLK_ENABLE();
+	/* Initializes the peripherals clock */
+	PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_XSPI1;
+	PeriphClkInit.Xspi1ClockSelection = RCC_XSPI1CLKSOURCE_HCLK;
+	if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-  __HAL_RCC_GPIOG_CLK_ENABLE();
-  __HAL_RCC_GPIOF_CLK_ENABLE();
-  /**QUADSPI GPIO Configuration
-  PG6     ------> QUADSPI_BK1_NCS
-  PF7     ------> QUADSPI_BK1_IO2
-  PF6     ------> QUADSPI_BK1_IO3
-  PF10     ------> QUADSPI_CLK
-  PF9     ------> QUADSPI_BK1_IO1
-  PF8     ------> QUADSPI_BK1_IO0
-  */
-  GPIO_InitStruct.Pin = GPIO_PIN_6;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF10_QUADSPI;
-  HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
+	/* Peripheral clock enable */
+	__HAL_RCC_XSPIM_CLK_ENABLE();
+	__HAL_RCC_XSPI1_CLK_ENABLE();
 
-  GPIO_InitStruct.Pin = GPIO_PIN_7 | GPIO_PIN_6 | GPIO_PIN_10;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF9_QUADSPI;
-  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+	__HAL_RCC_GPIOP_CLK_ENABLE();
+	__HAL_RCC_GPIOO_CLK_ENABLE();
+	/**XSPI1 GPIO Configuration
+	PP2     ------> XSPIM_P1_IO2
+	PP3     ------> XSPIM_P1_IO3
+	PO4     ------> XSPIM_P1_CLK
+	PP0     ------> XSPIM_P1_IO0
+	PP1     ------> XSPIM_P1_IO1
+	PO1     ------> XSPIM_P1_NCS2
+	PO0     ------> XSPIM_P1_NCS1
+	*/
+	GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_0|GPIO_PIN_1;
+	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+	GPIO_InitStruct.Alternate = GPIO_AF9_XSPIM_P1;
+	HAL_GPIO_Init(GPIOP, &GPIO_InitStruct);
 
-  GPIO_InitStruct.Pin = GPIO_PIN_9 | GPIO_PIN_8;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF10_QUADSPI;
-  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
-
-  qspiHandle->Instance = QUADSPI;
-  qspiHandle->Init.ClockPrescaler = 1;
-  qspiHandle->Init.FifoThreshold = 1;
-  qspiHandle->Init.SampleShifting = QSPI_SAMPLE_SHIFTING_HALFCYCLE;
-  qspiHandle->Init.FlashSize = 22;
-  qspiHandle->Init.ChipSelectHighTime = QSPI_CS_HIGH_TIME_2_CYCLE;
-  qspiHandle->Init.ClockMode = QSPI_CLOCK_MODE_0;
-  qspiHandle->Init.FlashID = QSPI_FLASH_ID_1;
-  qspiHandle->Init.DualFlash = QSPI_DUALFLASH_DISABLE;
-  if (HAL_QSPI_Init(qspiHandle) != HAL_OK) {
-    Error_Handler();
-  }
+	GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_1|GPIO_PIN_0;
+	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+	GPIO_InitStruct.Alternate = GPIO_AF9_XSPIM_P1;
+	HAL_GPIO_Init(GPIOO, &GPIO_InitStruct);
+	
+	/* XSPI1 parameter configuration*/
+	hxspi->Instance = XSPI1;
+	hxspi->Init.FifoThresholdByte = 1;
+	hxspi->Init.MemoryMode = HAL_XSPI_SINGLE_MEM;
+	hxspi->Init.MemoryType = HAL_XSPI_MEMTYPE_APMEM;
+	hxspi->Init.MemorySize = HAL_XSPI_SIZE_32MB;	// bits!
+	hxspi->Init.ChipSelectHighTimeCycle = 2;	// 27ns @ 75MHz (min is 18ns)
+	hxspi->Init.FreeRunningClock = HAL_XSPI_FREERUNCLK_DISABLE;
+	hxspi->Init.ClockMode = HAL_XSPI_CLOCK_MODE_0;
+	hxspi->Init.WrapSize = HAL_XSPI_WRAP_NOT_SUPPORTED;
+	hxspi->Init.ClockPrescaler = 4;	// 75MHz (max is 80MHz for single mode)
+	hxspi->Init.SampleShifting = HAL_XSPI_SAMPLE_SHIFT_NONE;
+	hxspi->Init.DelayHoldQuarterCycle = HAL_XSPI_DHQC_DISABLE;
+	hxspi->Init.ChipSelectBoundary = HAL_XSPI_BONDARYOF_NONE;
+	hxspi->Init.MaxTran = 225;	// 3us @ 75MHz (max is 3us)
+	hxspi->Init.Refresh = 0;
+	hxspi->Init.MemorySelect = HAL_XSPI_CSSEL_NCS2;
+	if (HAL_XSPI_Init(hxspi) != HAL_OK)
+	{
+		Error_Handler();
+	}
 }
 
 #ifdef __cplusplus

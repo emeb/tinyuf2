@@ -1,11 +1,11 @@
-#include "stm32h7xx_hal.h"
+#include "stm32h7rsxx_hal.h"
 #include "board_api.h"
 #include <stdint.h>
 
 #define STM32_UUID ((uint32_t *)0x1FF1E800)
 
 #ifdef UART_DEV
-static UART_HandleTypeDef UartHandle;
+static USART_HandleTypeDef UsartHandle;
 #endif
 
 // fixes for linker warnings: _syscall is not implemented and will always fail
@@ -47,7 +47,7 @@ void board_init(void)
   __HAL_RCC_GPIOK_CLK_ENABLE();
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   // UART
-  #ifdef UART_DEV
+#ifdef UART_DEV
   UART_CLOCK_ENABLE();
   GPIO_InitStruct.Pin = UART_TX_PIN | UART_RX_PIN;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
@@ -56,19 +56,14 @@ void board_init(void)
   GPIO_InitStruct.Alternate = UART_GPIO_AF;
   HAL_GPIO_Init(UART_GPIO_PORT, &GPIO_InitStruct);
 
-  UartHandle.Instance = UART_DEV;
-  UartHandle.Init.BaudRate = 115200;
-  UartHandle.Init.WordLength = UART_WORDLENGTH_8B;
-  UartHandle.Init.StopBits = UART_STOPBITS_1;
-  UartHandle.Init.Parity = UART_PARITY_NONE;
-  UartHandle.Init.Mode = UART_MODE_TX_RX;
-  UartHandle.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  UartHandle.Init.OverSampling = UART_OVERSAMPLING_16;
-  UartHandle.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  UartHandle.Init.ClockPrescaler = UART_PRESCALER_DIV1;
-  UartHandle.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  HAL_UART_Init(&UartHandle);
-  #endif
+  UsartHandle.Instance        = UART_DEV;
+  UsartHandle.Init.BaudRate   = 115200;
+  UsartHandle.Init.WordLength = USART_WORDLENGTH_8B;
+  UsartHandle.Init.StopBits   = USART_STOPBITS_1;
+  UsartHandle.Init.Parity     = USART_PARITY_NONE;
+  UsartHandle.Init.Mode       = USART_MODE_TX_RX;
+  HAL_USART_Init(&UsartHandle);
+#endif
   memset(&GPIO_InitStruct,0,sizeof(GPIO_InitStruct));
 #ifdef BUTTON_PIN
   GPIO_InitStruct.Pin = BUTTON_PIN;
@@ -149,7 +144,7 @@ bool board_app_valid(void)
   uint32_t app_vector[2u] = { 0u, 0u };
   board_flash_read(app_addr, app_vector, 8u);
 
-  // 1st word should be in SRAM region and aligned
+  // 1st word is top of stack - should be in SRAM region and aligned
   switch ((app_vector[0] & 0xFFFF0003u))
   {
     case 0x00000000u: // ITCM 64K       [0x0000_0000u--0x0000_FFFFu]
@@ -233,7 +228,7 @@ uint8_t allow_rcc_deinit = 1;
   board_clear_temp_boot_addr();
 
 #ifdef UART_DEV
-  HAL_UART_DeInit(&UartHandle);
+  HAL_USART_DeInit(&UsartHandle);
   HAL_GPIO_DeInit(UART_GPIO_PORT, UART_TX_PIN | UART_RX_PIN);
   UART_CLOCK_DISABLE();
 #endif
@@ -280,7 +275,7 @@ void board_timer_stop(void)
 int board_uart_write(void const * buf, int len)
 {
 #ifdef UART_DEV
-  HAL_UART_Transmit(&UartHandle, (uint8_t*) buf, len, 0xFFFFFFFFU);
+  HAL_USART_Transmit(&UsartHandle, (uint8_t*) buf, len, 0xFFFFFFFFU);
   return len;
 #else
   (void) buf;

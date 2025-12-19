@@ -1,5 +1,5 @@
 #include "board_api.h"
-#include "stm32h7xx_hal.h"
+#include "stm32h7rsxx_hal.h"
 #include "qspi_status.h"
 
 #ifdef W25Qx_SPI
@@ -16,7 +16,7 @@
 #endif
 
 #if defined (BOARD_QSPI_FLASH_EN) && (BOARD_QSPI_FLASH_EN == 1)
-QSPI_HandleTypeDef _qspi_flash;
+XSPI_HandleTypeDef hxspi1;
 #endif // BOARD_QSPI_FLASH_EN
 
 #if defined (BOARD_SPI_FLASH_EN) && (BOARD_SPI_FLASH_EN == 1)
