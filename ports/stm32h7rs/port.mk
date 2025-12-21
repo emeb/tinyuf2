@@ -41,6 +41,12 @@ SRC_C += \
   $(PORT_DIR)/components/is25lp064a/is25lp064a_qspi.c
 endif
 
+ifeq ($(QSPI_FLASH),GD25Q32C_QSPI)
+INC += ${TOP}/$(PORT_DIR)/components/gd25q32c
+SRC_C += \
+	$(PORT_DIR)/components/gd25q32c/gd25q32c_qspi.c
+endif
+
 ifeq ($(DISPLAY_DRV),ST7735)
 INC += ${TOP}/$(PORT_DIR)/components/st7735/
 
@@ -59,7 +65,7 @@ SRC_C += \
   $(ST_HAL_DRIVER)/Src/stm32h7rsxx_hal_gpio.c \
   $(ST_HAL_DRIVER)/Src/stm32h7rsxx_hal_flash.c \
   $(ST_HAL_DRIVER)/Src/stm32h7rsxx_hal_flash_ex.c \
-  $(ST_HAL_DRIVER)/Src/stm32h7rsxx_hal_uart.c \
+  $(ST_HAL_DRIVER)/Src/stm32h7rsxx_hal_usart.c \
   $(ST_HAL_DRIVER)/Src/stm32h7rsxx_hal_spi.c \
   $(ST_HAL_DRIVER)/Src/stm32h7rsxx_hal_pwr.c \
   $(ST_HAL_DRIVER)/Src/stm32h7rsxx_hal_pwr_ex.c \

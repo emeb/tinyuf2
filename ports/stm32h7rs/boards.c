@@ -28,7 +28,6 @@ void board_init(void)
 #ifndef RAMCODE
   SCB_EnableDCache();
 #endif
-  __HAL_RCC_SYSCFG_CLK_ENABLE();
   clock_init();
   SystemCoreClockUpdate();
   SysTick_Config( (SystemCoreClock/1000) );
@@ -42,9 +41,6 @@ void board_init(void)
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOI_CLK_ENABLE();
-  __HAL_RCC_GPIOJ_CLK_ENABLE();
-  __HAL_RCC_GPIOK_CLK_ENABLE();
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   // UART
 #ifdef UART_DEV
@@ -100,13 +96,13 @@ void board_dfu_init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Alternate = GPIO_AF10_OTG2_HS;
+  GPIO_InitStruct.Alternate = GPIO_AF10_OTG_FS;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   // https://community.st.com/s/question/0D50X00009XkYZLSA3/stm32h7-nucleo-usb-fs-cdc
   // TODO: Board init actually works fine without this line.
   HAL_PWREx_EnableUSBVoltageDetector();
-  __HAL_RCC_USB2_OTG_FS_CLK_ENABLE();
+  __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
 
   // No VBUS Sensing capabilities on the board
   // TODO: add a compile switch and Vbus sensing capability
@@ -202,9 +198,6 @@ void board_app_jump(void)
   __HAL_RCC_GPIOF_CLK_DISABLE();
   __HAL_RCC_GPIOG_CLK_DISABLE();
   __HAL_RCC_GPIOH_CLK_DISABLE();
-  __HAL_RCC_GPIOI_CLK_DISABLE();
-  __HAL_RCC_GPIOJ_CLK_DISABLE();
-  __HAL_RCC_GPIOK_CLK_DISABLE();
   // Lotsa GPIOs
 uint8_t allow_rcc_deinit = 1;
 

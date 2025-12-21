@@ -10,6 +10,10 @@
 #include "components/w25qxx/w25qxx_qspi.h"
 #endif // W25Qx_QSPI
 
+#ifdef GD25Q32C_QSPI
+#include "components/gd25q32c/gd25q32c_qspi.h"
+#endif // GD25Q32C_QSPI
+
 #ifdef IS25LP064A
 #include "components/is25lp064a/is25lp064a_qspi.h"
 #include "components/is25lp064a/is25lp064a.h"
@@ -70,12 +74,17 @@ static void qspi_Init(void) {
     TUF2_LOG1("Error initializing QSPI Flash\r\n");
   }
   #endif
-
+  #ifdef GD25Q32C_QSPI
+  gd25q32c_Init();
+  #endif
 }
 
 static void qspi_EnterQPI(void) {
   #ifdef W25Qx_QSPI
   w25qxx_EnterQPI();
+  #endif
+  #ifdef GD25Q32C_QSPI
+  gd25q32c_EnterQPI();
   #endif
 }
 
@@ -88,6 +97,9 @@ static void qspi_Startup(void) {
     TUF2_LOG1("Error enabling memory map for QSPI Flash\r\n");
   }
   #endif
+  #ifdef GD25Q32C_QSPI
+  gd25q32c_Startup(qspi_DTRMode);
+  #endif
 }
 
 static uint8_t qspi_Read(uint8_t *pData, uint32_t ReadAddr, uint32_t Size) {
@@ -96,6 +108,9 @@ static uint8_t qspi_Read(uint8_t *pData, uint32_t ReadAddr, uint32_t Size) {
   #endif
   #ifdef IS25LP064A
   return CSP_QSPI_Read(pData, ReadAddr, Size);
+  #endif
+  #ifdef GD25Q32C_QSPI
+  gd25q32c_Read(pData,ReadAddr,Size);
   #endif
   return qspi_OK;
 }
@@ -107,6 +122,9 @@ static uint8_t qspi_Write(uint8_t* pData, uint32_t WriteAddr, uint32_t Size) {
   #ifdef IS25LP064A
   return CSP_QSPI_Write(pData,WriteAddr,Size);
   #endif
+  #ifdef GD25Q32C_QSPI
+  gd25q32c_Write(pData,WriteAddr,Size);
+  #endif
   return qspi_OK;
 }
 
@@ -117,6 +135,9 @@ static void qspi_EraseChip(void) {
   #endif
   #ifdef IS25LP064A
   CSP_QSPI_Erase_Chip();
+  #endif
+  #ifdef GD25Q32C_QSPI
+  gd25q32c_EraseChip();
   #endif
 }
 
@@ -148,7 +169,7 @@ void board_flash_early_init(void)
 {
 #if defined (BOARD_QSPI_FLASH_EN) && (BOARD_QSPI_FLASH_EN == 1)
   // QSPI is initialized early to check for executable code
-  qspi_flash_init(&_qspi_flash);
+  qspi_flash_init(&hxspi1);
   // Initialize QSPI driver
   qspi_Init();
   // SPI -> QPI
