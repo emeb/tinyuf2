@@ -5,73 +5,67 @@
 
 extern XSPI_HandleTypeDef hxspi1;
 
-static uint32_t XSPI_EnableMemoryMappedMode(XSPI_HandleTypeDef *hqspi,uint8_t DTRMode);
+static uint32_t XSPI_EnableMemoryMappedMode(XSPI_HandleTypeDef *hqspi);
 static uint32_t XSPI_ResetDevice(XSPI_HandleTypeDef *hqspi);
-static uint8_t XSPI_EnterQPI(XSPI_HandleTypeDef *hqspi);
-static uint32_t XSPI_AutoPollingMemReady(XSPI_HandleTypeDef *hqspi, uint32_t Timeout);
 static uint32_t XSPI_WriteEnable(XSPI_HandleTypeDef *hqspi);
-static uint32_t XSPI_EnterFourBytesAddress(XSPI_HandleTypeDef *hqspi);
+static uint8_t XSPI_Send_CMD(XSPI_HandleTypeDef *hqspi, uint32_t instruction,
+	uint32_t address, uint32_t addressSize, uint32_t dummyCycles,
+	uint32_t addressMode, uint32_t dataMode, uint32_t dataSize);
 
-static uint8_t XSPI_Send_CMD(XSPI_HandleTypeDef *hqspi,uint32_t instruction, uint32_t address,uint32_t addressSize,uint32_t dummyCycles,
-                    uint32_t instructionMode,uint32_t addressMode, uint32_t dataMode, uint32_t dataSize);
-
-qspi_StatusTypeDef gd25q32c_Mode = qspi_SPIMode;
 uint8_t gd25q32c_StatusReg[3];
 uint16_t gd25q32c_ID;
 
+/*
+ * Init the external flash
+ */
 void gd25q32c_Init(void)
 {
-  XSPI_ResetDevice(&hxspi1);
-  HAL_Delay(0); // 1ms wait device stable
-  gd25q32c_ID = gd25q32c_GetID();
-  gd25q32c_ReadAllStatusReg();
+	XSPI_ResetDevice(&hxspi1);
+	HAL_Delay(0); // 1ms wait device stable
+	gd25q32c_ID = gd25q32c_GetID();
+	gd25q32c_ReadAllStatusReg();
 }
 
+/*
+ * Fetch the external flash ID
+ */
 uint16_t gd25q32c_GetID(void)
 {
-  uint8_t ID[6];
-  uint16_t deviceID;
+	uint8_t ID[6];
+	uint16_t deviceID;
 
-  if(gd25q32c_Mode == qspi_SPIMode)
-    XSPI_Send_CMD(&hxspi1,GD25X_QUAD_ManufactDeviceID,0x00,HAL_XSPI_ADDRESS_24_BITS,6,HAL_XSPI_INSTRUCTION_1_LINE,HAL_XSPI_ADDRESS_4_LINES, HAL_XSPI_DATA_4_LINES, sizeof(ID));
-  else
-    XSPI_Send_CMD(&hxspi1,GD25X_ManufactDeviceID,0x00,HAL_XSPI_ADDRESS_24_BITS,0,HAL_XSPI_INSTRUCTION_4_LINES,HAL_XSPI_ADDRESS_4_LINES, HAL_XSPI_DATA_4_LINES, sizeof(ID));
+	XSPI_Send_CMD(&hxspi1, GD25X_QUAD_ManufactDeviceID, 0x00,
+		HAL_XSPI_ADDRESS_24_BITS, 6, HAL_XSPI_ADDRESS_4_LINES,
+		HAL_XSPI_DATA_4_LINES, sizeof(ID));
 
-  /* Reception of the data */
-  if (HAL_XSPI_Receive(&hxspi1, ID, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
-  {
-    return qspi_ERROR;
-  }
-  deviceID = (ID[0] << 8) | ID[1];
+	if (HAL_XSPI_Receive(&hxspi1, ID, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
+	{
+		return qspi_ERROR;
+	}
+	deviceID = (ID[0] << 8) | ID[1];
 
-  return deviceID;
+	return deviceID;
 }
 
+/*
+ * Read one status register
+ */
 uint8_t gd25q32c_ReadSR(uint8_t SR)
 {
-  uint8_t byte=0;
-  if(gd25q32c_Mode == qspi_SPIMode)
-    XSPI_Send_CMD(&hxspi1,SR,0x00,HAL_XSPI_ADDRESS_8_BITS,0,HAL_XSPI_INSTRUCTION_1_LINE,HAL_XSPI_ADDRESS_NONE, HAL_XSPI_DATA_1_LINE, 1);
-  else
-    XSPI_Send_CMD(&hxspi1,SR,0x00,HAL_XSPI_ADDRESS_8_BITS,0,HAL_XSPI_INSTRUCTION_4_LINES,HAL_XSPI_ADDRESS_NONE, HAL_XSPI_DATA_4_LINES, 1);
+	uint8_t byte=0;
+	XSPI_Send_CMD(&hxspi1, SR, 0x00, HAL_XSPI_ADDRESS_8_BITS, 0,
+		HAL_XSPI_ADDRESS_NONE, HAL_XSPI_DATA_1_LINE, 1);
 
-  if (HAL_XSPI_Receive(&hxspi1,&byte,HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
-  {
-
-  }
-  return byte;
+	if (HAL_XSPI_Receive(&hxspi1,&byte,HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
+	{
+		return qspi_ERROR;
+	}
+	return byte;
 }
 
-uint8_t gd25q32c_WriteSR(uint8_t SR,uint8_t data)
-{
-  if(gd25q32c_Mode == qspi_SPIMode)
-    XSPI_Send_CMD(&hxspi1,SR,0x00,HAL_XSPI_ADDRESS_8_BITS,0,HAL_XSPI_INSTRUCTION_1_LINE,HAL_XSPI_ADDRESS_NONE, HAL_XSPI_DATA_1_LINE, 1);
-  else
-    XSPI_Send_CMD(&hxspi1,SR,0x00,HAL_XSPI_ADDRESS_8_BITS,0,HAL_XSPI_INSTRUCTION_4_LINES,HAL_XSPI_ADDRESS_NONE, HAL_XSPI_DATA_4_LINES, 1);
-
-  return HAL_XSPI_Transmit(&hxspi1,&data,HAL_XSPI_TIMEOUT_DEFAULT_VALUE);
-}
-
+/*
+ * Fetch all three status registers into local storage
+ */
 uint8_t gd25q32c_ReadAllStatusReg(void)
 {
   gd25q32c_StatusReg[0] = gd25q32c_ReadSR(GD25X_ReadStatusReg1);
@@ -80,55 +74,36 @@ uint8_t gd25q32c_ReadAllStatusReg(void)
   return qspi_OK;
 }
 
-//等待空闲
+/*
+ * Wait for Busy flag to deassert
+ */
 void gd25q32c_Wait_Busy(void)
 {
   while((gd25q32c_ReadSR(GD25X_ReadStatusReg1) & 0x01) == 0x01);
 }
 
-// Only use in QPI mode
-uint8_t gd25q32c_SetReadParameters(uint8_t DummyClock,uint8_t WrapLenth)
-{
-  uint8_t send;
-  send = (DummyClock/2 -1)<<4 | ((WrapLenth/8 - 1)&0x03);
-
-  gd25q32c_WriteEnable();
-
-  XSPI_Send_CMD(&hxspi1,GD25X_SetReadParam,0x00,HAL_XSPI_ADDRESS_8_BITS,0,HAL_XSPI_INSTRUCTION_4_LINES,HAL_XSPI_ADDRESS_NONE, HAL_XSPI_DATA_4_LINES, 1);
-
-  return HAL_XSPI_Transmit(&hxspi1,&send,HAL_XSPI_TIMEOUT_DEFAULT_VALUE);
-}
-
-uint8_t gd25q32c_EnterQPI(void)
-{
-  /* Enter QSPI memory in QSPI mode */
-  if(XSPI_EnterQPI(&hxspi1) != qspi_OK)
-  {
-    return qspi_ERROR;
-  }
-
-  return gd25q32c_SetReadParameters(8,8);
-}
-
-
 /**
-  * @brief  Initializes and configure the QSPI interface.
+  * @brief  Initializes and configure the QSPI interface for memory map mode.
   * @retval QSPI memory status
   */
-uint8_t gd25q32c_Startup(uint8_t DTRMode)
+uint8_t gd25q32c_Startup(void)
 {
-  /* Enable MemoryMapped mode */
-  if( XSPI_EnableMemoryMappedMode(&hxspi1,DTRMode) != qspi_OK )
-  {
-    return qspi_ERROR;
-  }
-  return qspi_OK;
+	/* Enable MemoryMapped mode */
+	if( XSPI_EnableMemoryMappedMode(&hxspi1) != qspi_OK )
+	{
+		return qspi_ERROR;
+	}
+	return qspi_OK;
 }
 
+/*
+ * Set Write Enable bit
+ */
 uint8_t gd25q32c_WriteEnable(void)
 {
   return XSPI_WriteEnable(&hxspi1);
 }
+
 /**
   * @brief  Erase 4KB Sector of the OSPI memory.
   * @param  SectorAddress: Sector address to erase
@@ -136,21 +111,20 @@ uint8_t gd25q32c_WriteEnable(void)
   */
 uint8_t gd25q32c_EraseSector(uint32_t SectorAddress)
 {
-  uint8_t result;
+	uint8_t result;
 
-  gd25q32c_WriteEnable();
-  gd25q32c_Wait_Busy();
+	gd25q32c_WriteEnable();
+	gd25q32c_Wait_Busy();
 
-  if(gd25q32c_Mode == qspi_SPIMode)
-    result = XSPI_Send_CMD(&hxspi1,GD25X_SectorErase,SectorAddress,HAL_XSPI_ADDRESS_24_BITS,0,HAL_XSPI_INSTRUCTION_1_LINE,HAL_XSPI_ADDRESS_1_LINE,HAL_XSPI_DATA_NONE,0);
-  else
-    result = XSPI_Send_CMD(&hxspi1,GD25X_SectorErase,SectorAddress,HAL_XSPI_ADDRESS_24_BITS,0,HAL_XSPI_INSTRUCTION_4_LINES,HAL_XSPI_ADDRESS_4_LINES,HAL_XSPI_DATA_NONE,0);
+	result = XSPI_Send_CMD(&hxspi1, GD25X_SectorErase, SectorAddress,
+		HAL_XSPI_ADDRESS_24_BITS, 0, HAL_XSPI_ADDRESS_1_LINE,
+		HAL_XSPI_DATA_NONE, 0);
 
-  /* 等待擦除完成 */
-  if(result == qspi_OK)
-    gd25q32c_Wait_Busy();
+	/* wait while busy */
+	if(result == qspi_OK)
+		gd25q32c_Wait_Busy();
 
-  return result;
+	return result;
 }
 
 /**
@@ -165,12 +139,8 @@ uint8_t gd25q32c_EraseBlock(uint32_t BlockAddress)
   gd25q32c_WriteEnable();
   gd25q32c_Wait_Busy();
 
-  if(gd25q32c_Mode == qspi_SPIMode)
-    result = XSPI_Send_CMD(&hxspi1,GD25X_BlockErase,BlockAddress,HAL_XSPI_ADDRESS_24_BITS,0,HAL_XSPI_INSTRUCTION_1_LINE,HAL_XSPI_ADDRESS_1_LINE,HAL_XSPI_DATA_NONE,0);
-  else
-    result = XSPI_Send_CMD(&hxspi1,GD25X_BlockErase,BlockAddress,HAL_XSPI_ADDRESS_24_BITS,0,HAL_XSPI_INSTRUCTION_4_LINES,HAL_XSPI_ADDRESS_4_LINES,HAL_XSPI_DATA_NONE,0);
+  result = XSPI_Send_CMD(&hxspi1,GD25X_BlockErase,BlockAddress,HAL_XSPI_ADDRESS_24_BITS,0,HAL_XSPI_ADDRESS_1_LINE,HAL_XSPI_DATA_NONE,0);
 
-  /* 等待擦除完成 */
   if(result == qspi_OK)
     gd25q32c_Wait_Busy();
 
@@ -189,12 +159,8 @@ uint8_t gd25q32c_EraseChip(void)
   gd25q32c_WriteEnable();
   gd25q32c_Wait_Busy();
 
-  if(gd25q32c_Mode == qspi_SPIMode)
-    result = XSPI_Send_CMD(&hxspi1,GD25X_ChipErase,0x00,HAL_XSPI_ADDRESS_8_BITS,0,HAL_XSPI_INSTRUCTION_1_LINE,HAL_XSPI_ADDRESS_NONE,HAL_XSPI_DATA_NONE,0);
-  else
-    result = XSPI_Send_CMD(&hxspi1,GD25X_ChipErase,0x00,HAL_XSPI_ADDRESS_8_BITS,0,HAL_XSPI_INSTRUCTION_4_LINES,HAL_XSPI_ADDRESS_NONE,HAL_XSPI_DATA_NONE,0);
+  result = XSPI_Send_CMD(&hxspi1,GD25X_ChipErase,0x00,HAL_XSPI_ADDRESS_8_BITS,0,HAL_XSPI_ADDRESS_NONE,HAL_XSPI_DATA_NONE,0);
 
-  /* 等待擦除完成 */
   if(result == qspi_OK)
     gd25q32c_Wait_Busy();
 
@@ -214,26 +180,24 @@ uint8_t gd25q32c_PageProgram(uint8_t *pData, uint32_t WriteAddr, uint32_t Size)
 
   gd25q32c_WriteEnable();
 
-  if(gd25q32c_Mode == qspi_SPIMode)
-    result = XSPI_Send_CMD(&hxspi1,GD25X_QUAD_INPUT_PAGE_PROG_CMD,WriteAddr,HAL_XSPI_ADDRESS_24_BITS,0,HAL_XSPI_INSTRUCTION_1_LINE,HAL_XSPI_ADDRESS_1_LINE,HAL_XSPI_DATA_4_LINES,Size);
-  else
-    result = XSPI_Send_CMD(&hxspi1,GD25X_PageProgram,WriteAddr,HAL_XSPI_ADDRESS_24_BITS,0,HAL_XSPI_INSTRUCTION_4_LINES,HAL_XSPI_ADDRESS_4_LINES,HAL_XSPI_DATA_4_LINES,Size);
+  result = XSPI_Send_CMD(&hxspi1,GD25X_QUAD_INPUT_PAGE_PROG_CMD,WriteAddr,HAL_XSPI_ADDRESS_24_BITS,0,HAL_XSPI_ADDRESS_1_LINE,HAL_XSPI_DATA_4_LINES,Size);
 
   if(result == qspi_OK)
     result = HAL_XSPI_Transmit(&hxspi1,pData,HAL_XSPI_TIMEOUT_DEFAULT_VALUE);
 
-  /* 等待写入完成 */
   if(result == qspi_OK)
     gd25q32c_Wait_Busy();
 
   return result;
 }
 
-//读取SPI FLASH,仅支持QPI模式
-//在指定地址开始读取指定长度的数据
-//pBuffer:数据存储区
-//ReadAddr:开始读取的地址(最大32bit)
-//NumByteToRead:要读取的字节数(最大65535)
+/**
+  * @brief  Read an amount of data from the QSPI memory.
+  * @param  pData Pointer to data to be read
+  * @param  ReadAddr Read start address
+  * @param  Size Size of data to write. Range 1 ~ W25qxx page size
+  * @retval QSPI memory status
+  */
 uint8_t gd25q32c_Read(uint8_t *pData, uint32_t ReadAddr, uint32_t Size)
 {
   uint8_t result;
@@ -241,35 +205,16 @@ uint8_t gd25q32c_Read(uint8_t *pData, uint32_t ReadAddr, uint32_t Size)
   XSPI_RegularCmdTypeDef      s_command;
 
   /* Configure the command for the read instruction */
-
-  if(gd25q32c_Mode == qspi_QPIMode)
-  {
-    s_command.Instruction     = GD25X_QUAD_INOUT_FAST_READ_CMD;
-    s_command.InstructionMode = HAL_XSPI_INSTRUCTION_4_LINES;
-    s_command.DummyCycles     = GD25X_DUMMY_CYCLES_READ_QUAD;
-  }
-  else
-  {
-    s_command.Instruction     = GD25X_QUAD_INOUT_FAST_READ_CMD;
-    s_command.InstructionMode = HAL_XSPI_INSTRUCTION_1_LINE;
-    s_command.DummyCycles     = GD25X_DUMMY_CYCLES_READ_QUAD-2;
-  }
-
+  s_command.Instruction       = GD25X_QUAD_INOUT_FAST_READ_CMD;
+  s_command.InstructionMode   = HAL_XSPI_INSTRUCTION_4_LINES;
+  s_command.DummyCycles       = GD25X_DUMMY_CYCLES_READ_QUAD;
   s_command.Address           = ReadAddr;
   s_command.AddressMode       = HAL_XSPI_ADDRESS_4_LINES;
   s_command.AddressWidth      = HAL_XSPI_ADDRESS_24_BITS;
-
-  s_command.AlternateBytesMode = HAL_XSPI_ALT_BYTES_4_LINES;
-  s_command.AlternateBytes    = 0xFF;
-  s_command.AlternateBytesWidth = HAL_XSPI_ALT_BYTES_8_BITS;
-
+  s_command.AlternateBytesMode = HAL_XSPI_ALT_BYTES_NONE;
   s_command.DataMode          = HAL_XSPI_DATA_4_LINES;
   s_command.DataLength        = Size;
-
   s_command.DQSMode           = HAL_XSPI_DQS_DISABLE;
-
-  //s_command.DdrHoldHalfCycle  = XSPI_DDR_HHC_ANALOG_DELAY;
-  //s_command.SIOOMode          = XSPI_SIOO_INST_EVERY_CMD;
 
   result = HAL_XSPI_Command(&hxspi1, &s_command, HAL_XSPI_TIMEOUT_DEFAULT_VALUE);
 
@@ -381,13 +326,14 @@ uint8_t gd25q32c_Write(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToW
 }
 
 /**
-  * @brief  Configure the QSPI in memory-mapped mode   QPI/SPI && DTR(DDR)/Normal Mode
+  * @brief  Configure the QSPI in memory-mapped mode
   * @param  hqspi: QSPI handle
-  * @param  DTRMode: qspi_DTRMode DTR mode ,qspi_NormalMode Normal mode
   * @retval QSPI memory status
   */
-static uint32_t XSPI_EnableMemoryMappedMode(XSPI_HandleTypeDef *hqspi,uint8_t DTRMode)
+static uint32_t XSPI_EnableMemoryMappedMode(XSPI_HandleTypeDef *hqspi)
 {
+#if 0
+	/* original w25qxx code */
   XSPI_RegularCmdTypeDef   s_command;
   XSPI_MemoryMappedTypeDef s_mem_mapped_cfg;
 
@@ -407,26 +353,14 @@ static uint32_t XSPI_EnableMemoryMappedMode(XSPI_HandleTypeDef *hqspi,uint8_t DT
 
   s_command.DataMode          = HAL_XSPI_DATA_4_LINES;
 
-  if(DTRMode == qspi_DTRMode)
-  {
-    s_command.Instruction     = GD25X_QUAD_INOUT_FAST_READ_DTR_CMD;
-    s_command.DummyCycles     = GD25X_DUMMY_CYCLES_READ_QUAD_DTR;
-    s_command.DQSMode         = HAL_XSPI_DQS_ENABLE;
-  }
+  s_command.Instruction     = GD25X_QUAD_INOUT_FAST_READ_CMD;
+
+  if(gd25q32c_Mode == qspi_QPIMode)
+    s_command.DummyCycles   = GD25X_DUMMY_CYCLES_READ_QUAD;
   else
-  {
-    s_command.Instruction     = GD25X_QUAD_INOUT_FAST_READ_CMD;
+    s_command.DummyCycles   = GD25X_DUMMY_CYCLES_READ_QUAD-2;
 
-    if(gd25q32c_Mode == qspi_QPIMode)
-      s_command.DummyCycles   = GD25X_DUMMY_CYCLES_READ_QUAD;
-    else
-      s_command.DummyCycles   = GD25X_DUMMY_CYCLES_READ_QUAD-2;
-
-    s_command.DQSMode         = HAL_XSPI_DQS_DISABLE;
-  }
-
-  //s_command.DdrHoldHalfCycle  = XSPI_DDR_HHC_ANALOG_DELAY;
-  //s_command.SIOOMode          = XSPI_SIOO_INST_ONLY_FIRST_CMD;
+  s_command.DQSMode         = HAL_XSPI_DQS_DISABLE;
 
   /* Configure the memory mapped mode */
   s_mem_mapped_cfg.TimeOutActivation = HAL_XSPI_TIMEOUT_COUNTER_DISABLE;
@@ -438,6 +372,53 @@ static uint32_t XSPI_EnableMemoryMappedMode(XSPI_HandleTypeDef *hqspi,uint8_t DT
   }
 
   return qspi_OK;
+#else
+	/* from EMEB's known-working code */
+	XSPI_RegularCmdTypeDef   sCommand;
+	XSPI_MemoryMappedTypeDef sMemMappedCfg;
+
+	/* set write & read ops & turn on mem mapped mode */
+	/* write mode should not be used on flash but it needs to be set up anyway */
+	sCommand.InstructionMode    = HAL_XSPI_INSTRUCTION_1_LINE; // on this device all instr are single
+	sCommand.InstructionDTRMode = HAL_XSPI_INSTRUCTION_DTR_DISABLE;
+	sCommand.AddressDTRMode     = HAL_XSPI_ADDRESS_DTR_DISABLE;
+	sCommand.AlternateBytesMode = HAL_XSPI_ALT_BYTES_NONE;
+	sCommand.DataMode			= HAL_XSPI_DATA_4_LINES;
+	sCommand.DataDTRMode        = HAL_XSPI_DATA_DTR_DISABLE;
+	sCommand.DQSMode            = HAL_XSPI_DQS_DISABLE;
+	sCommand.OperationType		= HAL_XSPI_OPTYPE_WRITE_CFG;
+	sCommand.AddressMode		= HAL_XSPI_ADDRESS_4_LINES;
+	sCommand.AddressWidth		= HAL_XSPI_ADDRESS_24_BITS;
+	sCommand.Instruction 		= GD25X_QUAD_INPUT_PAGE_PROG_CMD;
+	sCommand.DummyCycles		= 0U;
+	sCommand.DQSMode            = HAL_XSPI_DQS_ENABLE; // ERRATUM 2.4.1
+	if (HAL_XSPI_Command(hqspi, &sCommand, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
+	{
+		return qspi_ERROR;
+	}
+	
+	/* set read ops & turn on mem mapped mode */
+	sCommand.OperationType		= HAL_XSPI_OPTYPE_READ_CFG;
+	sCommand.Instruction 		= GD25X_QUAD_INOUT_FAST_READ_CMD;
+	sCommand.DummyCycles		= GD25X_DUMMY_CYCLES_READ_QUAD;
+	sCommand.DQSMode            = HAL_XSPI_DQS_DISABLE;	// return to correct value
+	if (HAL_XSPI_Command(hqspi, &sCommand, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
+	{
+		return qspi_ERROR;
+	}
+
+	sMemMappedCfg.TimeOutActivation = HAL_XSPI_TIMEOUT_COUNTER_ENABLE;
+	sMemMappedCfg.TimeoutPeriodClock      = 0x34;
+	if (HAL_XSPI_MemoryMapped(hqspi, &sMemMappedCfg) != HAL_OK)
+	{
+		return qspi_ERROR;
+	}
+	
+	/* wait a bit for things to settle */
+	HAL_Delay(1);
+	
+	return qspi_OK;
+#endif
 }
 
 /**
@@ -457,8 +438,6 @@ static uint32_t XSPI_ResetDevice(XSPI_HandleTypeDef *hqspi)
   s_command.DataMode          = HAL_XSPI_DATA_NONE;
   s_command.DummyCycles       = 0;
   s_command.DQSMode           = HAL_XSPI_DQS_DISABLE;
-  //s_command.DdrHoldHalfCycle  = HAL_XSPI_DDR_HHC_ANALOG_DELAY;
-  //s_command.SIOOMode          = XSPI_SIOO_INST_EVERY_CMD;
 
   /* Send the command */
   if (HAL_XSPI_Command(hqspi, &s_command, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
@@ -488,7 +467,6 @@ static uint32_t XSPI_ResetDevice(XSPI_HandleTypeDef *hqspi)
     return qspi_ERROR;
   }
 
-  gd25q32c_Mode = qspi_SPIMode;
   return qspi_OK;
 }
 
@@ -508,12 +486,12 @@ static uint32_t XSPI_ResetDevice(XSPI_HandleTypeDef *hqspi)
  *                      qspi_ERROR:错误
  */
 static uint8_t XSPI_Send_CMD(XSPI_HandleTypeDef *hqspi,uint32_t instruction, uint32_t address,uint32_t addressSize,uint32_t dummyCycles,
-                    uint32_t instructionMode,uint32_t addressMode, uint32_t dataMode, uint32_t dataSize)
+                    uint32_t addressMode, uint32_t dataMode, uint32_t dataSize)
 {
     XSPI_RegularCmdTypeDef Cmdhandler;
 
     Cmdhandler.Instruction        = instruction;
-    Cmdhandler.InstructionMode    = instructionMode;
+    Cmdhandler.InstructionMode    = HAL_XSPI_INSTRUCTION_1_LINE;
 
     Cmdhandler.Address            = address;
     Cmdhandler.AddressWidth       = addressSize;
@@ -522,60 +500,18 @@ static uint8_t XSPI_Send_CMD(XSPI_HandleTypeDef *hqspi,uint32_t instruction, uin
     Cmdhandler.AlternateBytes     = 0x00;
     Cmdhandler.AlternateBytesWidth = HAL_XSPI_ALT_BYTES_8_BITS;
     Cmdhandler.AlternateBytesMode  = HAL_XSPI_ALT_BYTES_NONE;
+	
     Cmdhandler.DummyCycles        = dummyCycles;
 
     Cmdhandler.DataMode           = dataMode;
     Cmdhandler.DataLength         = dataSize;
 
     Cmdhandler.DQSMode            = HAL_XSPI_DQS_DISABLE;
-    //Cmdhandler.DdrHoldHalfCycle   = XSPI_DDR_HHC_ANALOG_DELAY;
-    //Cmdhandler.SIOOMode           = XSPI_SIOO_INST_EVERY_CMD;
 
     if(HAL_XSPI_Command(hqspi, &Cmdhandler, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
       return qspi_ERROR;
 
     return qspi_OK;
-}
-
-/**
-  * @brief  This function set the QSPI memory in 4-byte address mode
-  * @param  hqspi: QSPI handle
-  * @retval None
-  */
-static uint32_t XSPI_EnterFourBytesAddress(XSPI_HandleTypeDef *hqspi)
-{
-  XSPI_RegularCmdTypeDef s_command;
-
-  /* Initialize the command */
-  s_command.InstructionMode   = HAL_XSPI_INSTRUCTION_4_LINES;
-  s_command.Instruction       = GD25X_Enable4ByteAddr;
-  s_command.AddressMode       = HAL_XSPI_ADDRESS_NONE;
-  s_command.AlternateBytesMode = HAL_XSPI_ALT_BYTES_NONE;
-  s_command.DataMode          = HAL_XSPI_DATA_NONE;
-  s_command.DummyCycles       = 0;
-  s_command.DQSMode           = HAL_XSPI_DQS_DISABLE;
-  //s_command.DdrHoldHalfCycle  = XSPI_DDR_HHC_ANALOG_DELAY;
-  //s_command.SIOOMode          = XSPI_SIOO_INST_EVERY_CMD;
-
-  /* Enable write operations */
-  if (XSPI_WriteEnable(hqspi) != qspi_OK)
-  {
-    return qspi_ERROR;
-  }
-
-  /* Send the command */
-  if (HAL_XSPI_Command(hqspi, &s_command, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
-  {
-    return qspi_ERROR;
-  }
-
-  /* Configure automatic polling mode to wait the memory is ready */
-  if (XSPI_AutoPollingMemReady(hqspi, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != qspi_OK)
-  {
-    return qspi_ERROR;
-  }
-
-  return qspi_OK;
 }
 
 /**
@@ -589,19 +525,13 @@ static uint32_t XSPI_WriteEnable(XSPI_HandleTypeDef *hqspi)
   XSPI_AutoPollingTypeDef s_config;
 
   /* Enable write operations */
-  if(gd25q32c_Mode == qspi_QPIMode)
-    s_command.InstructionMode = HAL_XSPI_INSTRUCTION_4_LINES;
-  else
-    s_command.InstructionMode = HAL_XSPI_INSTRUCTION_1_LINE;
-
+  s_command.InstructionMode   = HAL_XSPI_INSTRUCTION_1_LINE;
   s_command.Instruction       = GD25X_WriteEnable;
   s_command.AddressMode       = HAL_XSPI_ADDRESS_NONE;
   s_command.AlternateBytesMode = HAL_XSPI_ALT_BYTES_NONE;
   s_command.DataMode          = HAL_XSPI_DATA_NONE;
   s_command.DummyCycles       = 0;
   s_command.DQSMode           = HAL_XSPI_DQS_DISABLE;
-  //s_command.DdrHoldHalfCycle  = XSPI_DDR_HHC_ANALOG_DELAY;
-  //s_command.SIOOMode          = XSPI_SIOO_INST_EVERY_CMD;
 
   if (HAL_XSPI_Command(hqspi, &s_command, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
   {
@@ -614,90 +544,13 @@ static uint32_t XSPI_WriteEnable(XSPI_HandleTypeDef *hqspi)
   s_config.MatchMode       = HAL_XSPI_MATCH_MODE_AND;
   s_config.IntervalTime    = 0x10;
   s_config.AutomaticStop   = HAL_XSPI_AUTOMATIC_STOP_ENABLE;
-
   s_command.Instruction    = GD25X_ReadStatusReg1;
-
-  if(gd25q32c_Mode == qspi_QPIMode)
-    s_command.DataMode     = HAL_XSPI_DATA_4_LINES;
-  else
-    s_command.DataMode     = HAL_XSPI_DATA_1_LINE;
+  s_command.DataMode       = HAL_XSPI_DATA_1_LINE;
 
   if (HAL_XSPI_AutoPolling(hqspi, &s_config, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
   {
     return qspi_ERROR;
   }
-
-  return qspi_OK;
-}
-
-/**
-  * @brief  This function read the SR of the memory and wait the EOP.
-  * @param  hqspi: QSPI handle
-  * @param  Timeout
-  * @retval None
-  */
-static uint32_t XSPI_AutoPollingMemReady(XSPI_HandleTypeDef *hqspi, uint32_t Timeout)
-{
-  XSPI_RegularCmdTypeDef  s_command;
-  XSPI_AutoPollingTypeDef s_config;
-
-  /* Configure automatic polling mode to wait for memory ready */
-
-  if(gd25q32c_Mode == qspi_SPIMode)
-    s_command.InstructionMode   = HAL_XSPI_INSTRUCTION_1_LINE;
-  else
-    s_command.InstructionMode   = HAL_XSPI_INSTRUCTION_4_LINES;
-
-  s_command.Instruction       = GD25X_ReadStatusReg1;
-
-  s_command.AddressMode       = HAL_XSPI_ADDRESS_NONE;
-  s_command.Address           = 0x00;
-  s_command.AddressWidth      = HAL_XSPI_ADDRESS_8_BITS;
-  s_command.AlternateBytesMode = HAL_XSPI_ALT_BYTES_NONE;
-
-  if(gd25q32c_Mode == qspi_SPIMode)
-    s_command.DataMode        = HAL_XSPI_DATA_1_LINE;
-  else
-    s_command.DataMode        = HAL_XSPI_DATA_4_LINES;
-  s_command.DummyCycles       = 0;
-  s_command.DQSMode           = HAL_XSPI_DQS_DISABLE;
-  //s_command.DdrHoldHalfCycle  = XSPI_DDR_HHC_ANALOG_DELAY;
-  //s_command.SIOOMode          = XSPI_SIOO_INST_EVERY_CMD;
-
-  s_config.MatchValue      = 0;
-  s_config.MatchMask       = GD25X_SR_WIP;
-  s_config.MatchMode       = HAL_XSPI_MATCH_MODE_AND;
-  s_config.IntervalTime    = 0x10;
-  s_config.AutomaticStop   = HAL_XSPI_AUTOMATIC_STOP_ENABLE;
-
-  return HAL_XSPI_AutoPolling(hqspi, &s_config, Timeout);
-
-}
-
-/**
-  * @brief  This function enter the QSPI memory in QPI mode
-  * @param  hqspi QSPI handle
-  * @retval QSPI status
-  */
-static uint8_t XSPI_EnterQPI(XSPI_HandleTypeDef *hqspi)
-{
-  uint8_t stareg2;
-  stareg2 = gd25q32c_ReadSR(GD25X_ReadStatusReg2);
-  if((stareg2 & 0X02) == 0) //QE位未使能
-  {
-    gd25q32c_WriteEnable();
-    stareg2 |= 1<<1; //使能QE位
-    gd25q32c_WriteSR(GD25X_WriteStatusReg2,stareg2);
-  }
-  XSPI_Send_CMD(hqspi,GD25X_EnterQSPIMode,0x00,HAL_XSPI_ADDRESS_8_BITS,0,HAL_XSPI_INSTRUCTION_1_LINE,HAL_XSPI_ADDRESS_NONE,HAL_XSPI_DATA_NONE,0);
-
-  /* Configure automatic polling mode to wait the memory is ready */
-  if (XSPI_AutoPollingMemReady(hqspi, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != qspi_OK)
-  {
-    return qspi_ERROR;
-  }
-
-  gd25q32c_Mode = qspi_QPIMode;
 
   return qspi_OK;
 }

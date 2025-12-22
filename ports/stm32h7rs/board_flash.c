@@ -83,9 +83,6 @@ static void qspi_EnterQPI(void) {
   #ifdef W25Qx_QSPI
   w25qxx_EnterQPI();
   #endif
-  #ifdef GD25Q32C_QSPI
-  gd25q32c_EnterQPI();
-  #endif
 }
 
 static void qspi_Startup(void) {
@@ -98,7 +95,7 @@ static void qspi_Startup(void) {
   }
   #endif
   #ifdef GD25Q32C_QSPI
-  gd25q32c_Startup(qspi_DTRMode);
+  gd25q32c_Startup();
   #endif
 }
 
