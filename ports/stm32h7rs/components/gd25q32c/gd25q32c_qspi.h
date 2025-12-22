@@ -49,19 +49,10 @@
 #define GD25X_SR_WREN             (0x02)    /*!< Write enable latch */
 
 void      gd25q32c_Init(void);
-uint16_t  gd25q32c_GetID(void);
-uint8_t   gd25q32c_ReadAllStatusReg(void);
-uint8_t   gd25q32c_ReadSR(uint8_t SR);
-uint8_t   gd25q32c_SetReadParameters(uint8_t DummyClock,uint8_t WrapLenth);
 uint8_t   gd25q32c_Startup(void);
-uint8_t   gd25q32c_WriteEnable(void);
-uint8_t   gd25q32c_EraseSector(uint32_t SectorAddress);
-uint8_t   gd25q32c_EraseBlock(uint32_t BlockAddress);
-uint8_t   gd25q32c_EraseChip(void);
-uint8_t   gd25q32c_PageProgram(uint8_t *pData, uint32_t WriteAddr, uint32_t Size);
 uint8_t   gd25q32c_Read(uint8_t *pData, uint32_t ReadAddr, uint32_t Size);
-void      gd25q32c_WriteNoCheck(uint8_t *pBuffer,uint32_t WriteAddr,uint32_t NumByteToWrite);
 uint8_t   gd25q32c_Write(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToWrite);
+uint8_t   gd25q32c_EraseChip(void);
 
 #ifdef __cplusplus
 }
