@@ -107,7 +107,7 @@ static uint8_t qspi_Read(uint8_t *pData, uint32_t ReadAddr, uint32_t Size) {
   return CSP_QSPI_Read(pData, ReadAddr, Size);
   #endif
   #ifdef GD25Q32C_QSPI
-  gd25q32c_Read(pData,ReadAddr,Size);
+  gd25q32c_Read(pData, ReadAddr, Size);
   #endif
   return qspi_OK;
 }
