@@ -44,7 +44,6 @@
 extern XSPI_HandleTypeDef hxspi1;
 
 uint8_t gd25q32c_StatusReg[3];
-uint16_t gd25q32c_ID;
 
 /**
   * @brief  Configure the QSPI in memory-mapped mode
@@ -102,41 +101,6 @@ static uint8_t XSPI_EnableMemoryMappedMode(XSPI_HandleTypeDef *hqspi)
 }
 
 /**
-  * @brief  This function reset the QSPI memory.
-  * @param  hqspi: QSPI handle
-  * @retval qspi status
-  */
-static uint8_t XSPI_ResetDevice(XSPI_HandleTypeDef *hqspi)
-{
-	XSPI_RegularCmdTypeDef s_command;
-
-	/* Initialize the reset enable command */
-	s_command.OperationType     = HAL_XSPI_OPTYPE_COMMON_CFG;
-	s_command.InstructionMode   = HAL_XSPI_INSTRUCTION_1_LINE;
-	s_command.Instruction       = GD25X_EnableReset;
-	s_command.AddressMode       = HAL_XSPI_ADDRESS_NONE;
-	s_command.AlternateBytesMode = HAL_XSPI_ALT_BYTES_NONE;
-	s_command.DataMode          = HAL_XSPI_DATA_NONE;
-	s_command.DummyCycles       = 0;
-	s_command.DQSMode           = HAL_XSPI_DQS_DISABLE;
-
-	/* Send the command */
-	if (HAL_XSPI_Command(hqspi, &s_command, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
-	{
-		return qspi_ERROR;
-	}
-
-	/* Send the reset device command */
-	s_command.Instruction = GD25X_ResetDevice;
-	if (HAL_XSPI_Command(hqspi, &s_command, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
-	{
-		return qspi_ERROR;
-	}
-
-	return qspi_OK;
-}
-
-/**
  * @brief	Send QSPI command instruction w/ proper addr/alt/dummy/data setup 
  *
  * @param   instruction
@@ -184,6 +148,53 @@ static uint8_t XSPI_Send_CMD(XSPI_HandleTypeDef *hqspi, uint32_t instruction,
 }
 
 /**
+  * @brief  This function reset the QSPI memory.
+  * @param  hqspi: QSPI handle
+  * @retval qspi status
+  */
+static uint8_t XSPI_ResetDevice(XSPI_HandleTypeDef *hqspi)
+{
+#if 0
+	XSPI_RegularCmdTypeDef s_command;
+
+	/* Initialize the reset enable command */
+	s_command.OperationType     = HAL_XSPI_OPTYPE_COMMON_CFG;
+	s_command.InstructionMode   = HAL_XSPI_INSTRUCTION_1_LINE;
+	s_command.Instruction       = GD25X_EnableReset;
+	s_command.AddressMode       = HAL_XSPI_ADDRESS_NONE;
+	s_command.AlternateBytesMode = HAL_XSPI_ALT_BYTES_NONE;
+	s_command.DataMode          = HAL_XSPI_DATA_NONE;
+	s_command.DummyCycles       = 0;
+	s_command.DQSMode           = HAL_XSPI_DQS_DISABLE;
+
+	/* Send the command */
+	if (HAL_XSPI_Command(hqspi, &s_command, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
+	{
+		return qspi_ERROR;
+	}
+
+	/* Send the reset device command */
+	s_command.Instruction = GD25X_ResetDevice;
+	if (HAL_XSPI_Command(hqspi, &s_command, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
+	{
+		return qspi_ERROR;
+	}
+
+	return qspi_OK;
+#else
+	if(XSPI_Send_CMD(hqspi, GD25X_EnableReset, 0, 0,
+		HAL_XSPI_ADDRESS_NONE, HAL_XSPI_DATA_NONE, 0) != qspi_OK)
+		return qspi_ERROR;
+	
+	if(XSPI_Send_CMD(hqspi, GD25X_ResetDevice, 0, 0,
+		HAL_XSPI_ADDRESS_NONE, HAL_XSPI_DATA_NONE, 0) != qspi_OK)
+		return qspi_ERROR;
+	
+	return qspi_OK;
+#endif
+}
+
+/**
   * @brief  set the write enable bit
   * @param  hqspi: QSPI handle
   * @retval qspi status
@@ -192,27 +203,6 @@ static uint8_t XSPI_WriteEnable(XSPI_HandleTypeDef *hqspi)
 {
 	return XSPI_Send_CMD(hqspi, GD25X_WriteEnable,
 		0U, 0U, HAL_XSPI_ADDRESS_NONE, HAL_XSPI_DATA_NONE, 0U);
-}
-
-/**
-  * @brief Fetch the external flash mfg/device ID
-  * @param deviceID: pointer to uint16_t for result
-  * @retval qspi status
-  */
-static uint8_t XSPI_GetID(uint16_t *deviceID)
-{
-	uint8_t ID[6];
-
-	if(XSPI_Send_CMD(&hxspi1, GD25X_ManufactDeviceID, 0x00, 0U,
-		HAL_XSPI_ADDRESS_1_LINE, HAL_XSPI_DATA_1_LINE, sizeof(ID)) != qspi_OK)
-		return qspi_ERROR;
-
-	if (HAL_XSPI_Receive(&hxspi1, ID, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
-		return qspi_ERROR;
-	
-	*deviceID = (ID[0] << 8) | ID[1];
-
-	return qspi_OK;
 }
 
 /**
@@ -269,7 +259,6 @@ void gd25q32c_Init(void)
 {
 	XSPI_ResetDevice(&hxspi1);
 	HAL_Delay(0); // 1ms wait device stable
-	XSPI_GetID(&gd25q32c_ID);
 	XSPI_ReadAllStatusReg();
 	
 	/* check if QE bit set and enable if not */
