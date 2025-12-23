@@ -351,7 +351,7 @@ uint8_t gd25q32c_Write(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToW
 	}
 #else
 	/* this should be quicker */
-	current_addr = (WriteAddr & !0xff) + 256;
+	current_addr = (WriteAddr & ~0xff) + 256;
 #endif
 	current_size = current_addr - WriteAddr;
 
@@ -396,6 +396,26 @@ uint8_t gd25q32c_Write(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToW
 /**
   * @brief  Whole chip erase.
   * @param  SectorAddress: Sector address to erase
+  * @retval QSPI status
+  */
+uint8_t gd25q32c_EraseSector(uint32_t SectorAddress)
+{
+	if(XSPI_WriteEnable(&hxspi1) != qspi_OK)
+		return qspi_ERROR;
+	
+	XSPI_Wait_Busy();
+
+	if(XSPI_Send_CMD(&hxspi1, GD25X_SectorErase, SectorAddress, 0,
+		HAL_XSPI_ADDRESS_1_LINE, HAL_XSPI_DATA_NONE, 0) != qspi_OK)
+		return qspi_ERROR;
+
+	XSPI_Wait_Busy();
+
+	return qspi_OK;
+}
+
+/**
+  * @brief  Whole chip erase.
   * @retval QSPI status
   */
 uint8_t gd25q32c_EraseChip(void)

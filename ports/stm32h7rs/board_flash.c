@@ -2,56 +2,17 @@
 #include "stm32h7rsxx_hal.h"
 #include "qspi_status.h"
 
-#ifdef W25Qx_SPI
-#include "components/w25qxx/w25qxx.h"
-#endif // W25Qx_SPI
-
-#ifdef W25Qx_QSPI
-#include "components/w25qxx/w25qxx_qspi.h"
-#endif // W25Qx_QSPI
-
 #ifdef GD25Q32C_QSPI
 #include "components/gd25q32c/gd25q32c_qspi.h"
 #endif // GD25Q32C_QSPI
-
-#ifdef IS25LP064A
-#include "components/is25lp064a/is25lp064a_qspi.h"
-#include "components/is25lp064a/is25lp064a.h"
-#endif
 
 #if defined (BOARD_QSPI_FLASH_EN) && (BOARD_QSPI_FLASH_EN == 1)
 XSPI_HandleTypeDef hxspi1;
 #endif // BOARD_QSPI_FLASH_EN
 
-#if defined (BOARD_SPI_FLASH_EN) && (BOARD_SPI_FLASH_EN == 1)
-SPI_HandleTypeDef _spi_flash;
-#endif // BOARD_SPI_FLASH_EN
-
 //--------------------------------------------------------------------+
 // Board Memory Callouts
 //--------------------------------------------------------------------+
-#ifdef W25Qx_SPI
-uint32_t W25Qx_SPI_Transmit(uint8_t * buffer, uint16_t len, uint32_t timeout)
-{
-  return (uint32_t) HAL_SPI_Transmit(&_spi_flash, buffer, len, timeout);
-}
-
-uint32_t W25Qx_SPI_Receive(uint8_t * buffer, uint16_t len, uint32_t timeout)
-{
-  return (uint32_t) HAL_SPI_Receive(&_spi_flash, buffer, len, timeout);
-}
-
-void W25Qx_Delay(uint32_t ms)
-{
-  HAL_Delay(ms);
-}
-
-uint32_t W25Qx_GetTick(void)
-{
-  return HAL_GetTick();
-}
-#endif // W25Qx_SPI
-
 //--------------------------------------------------------------------+
 // Flash LL for tinyuf2
 //--------------------------------------------------------------------+
@@ -64,48 +25,21 @@ extern volatile uint32_t _board_tmp_boot_magic[];
 #define TMP_BOOT_MAGIC  _board_tmp_boot_magic[0]
 
 static void qspi_Init(void) {
-  #ifdef W25Qx_QSPI
-  w25qxx_Init();
-  #endif
-  #ifdef IS25LP064A
-  CSP_QSPI_DisableMemoryMappedMode();
-  CSP_QSPI_ExitQPIMODE();
-  if (CSP_QUADSPI_Init() != qspi_OK) {
-    TUF2_LOG1("Error initializing QSPI Flash\r\n");
-  }
-  #endif
   #ifdef GD25Q32C_QSPI
   gd25q32c_Init();
   #endif
 }
 
 static void qspi_EnterQPI(void) {
-  #ifdef W25Qx_QSPI
-  w25qxx_EnterQPI();
-  #endif
 }
 
 static void qspi_Startup(void) {
-  #ifdef W25Qx_QSPI
-  w25qxx_Startup(qspi_DTRMode);
-  #endif
-  #ifdef IS25LP064A
-  if (CSP_QSPI_EnableMemoryMappedMode() != qspi_OK) {
-    TUF2_LOG1("Error enabling memory map for QSPI Flash\r\n");
-  }
-  #endif
   #ifdef GD25Q32C_QSPI
   gd25q32c_Startup();
   #endif
 }
 
 static uint8_t qspi_Read(uint8_t *pData, uint32_t ReadAddr, uint32_t Size) {
-  #ifdef W25Qx_QSPI
-  return w25qxx_Read(pData,ReadAddr,Size);
-  #endif
-  #ifdef IS25LP064A
-  return CSP_QSPI_Read(pData, ReadAddr, Size);
-  #endif
   #ifdef GD25Q32C_QSPI
   gd25q32c_Read(pData, ReadAddr, Size);
   #endif
@@ -113,12 +47,6 @@ static uint8_t qspi_Read(uint8_t *pData, uint32_t ReadAddr, uint32_t Size) {
 }
 
 static uint8_t qspi_Write(uint8_t* pData, uint32_t WriteAddr, uint32_t Size) {
-  #ifdef W25Qx_QSPI
-  return w25qxx_Write(pData,WriteAddr,Size);
-  #endif
-  #ifdef IS25LP064A
-  return CSP_QSPI_Write(pData,WriteAddr,Size);
-  #endif
   #ifdef GD25Q32C_QSPI
   gd25q32c_Write(pData,WriteAddr,Size);
   #endif
@@ -127,12 +55,6 @@ static uint8_t qspi_Write(uint8_t* pData, uint32_t WriteAddr, uint32_t Size) {
 
 
 static void qspi_EraseChip(void) {
-  #ifdef W25Qx_QSPI
-  w25qxx_EraseChip();
-  #endif
-  #ifdef IS25LP064A
-  CSP_QSPI_Erase_Chip();
-  #endif
   #ifdef GD25Q32C_QSPI
   gd25q32c_EraseChip();
   #endif
@@ -176,12 +98,6 @@ void board_flash_early_init(void)
 
 void board_flash_init(void)
 {
-#if defined (BOARD_SPI_FLASH_EN) && (BOARD_SPI_FLASH_EN == 1)
-  // Initialize SPI peripheral
-  spi_flash_init(&_spi_flash);
-  // Initialize SPI drivers
-  W25Qx_Init();
-#endif // BOARD_SPI_FLASH_EN
 }
 
 void board_flash_deinit(void)
@@ -196,7 +112,7 @@ void board_flash_deinit(void)
 uint32_t board_flash_size(void)
 {
   // TODO: how do we handle more than 1 target here?
-  return 8*1024*1024;
+  return 4*1024*1024;
 }
 
 void board_flash_flush(void)
@@ -245,24 +161,16 @@ bool board_flash_write(uint32_t addr, void const * data, uint32_t len)
   // TODO: these should be configurable parameters
   // Page size = 256 bytes
   // Sector size = 4K bytes
-#if defined (BOARD_SPI_FLASH_EN) && (BOARD_SPI_FLASH_EN == 1U)
-  if (IS_SPI_ADDR(addr) && IS_SPI_ADDR(addr + len - 1))
-  {
-    W25Qx_Write((uint8_t *) data, (addr - SPI_BASE_ADDR), len);
-    return true;
-  }
-#endif
-
 #if defined (BOARD_QSPI_FLASH_EN) && (BOARD_QSPI_FLASH_EN == 1)
   if (IS_QSPI_ADDR(addr) && IS_QSPI_ADDR(addr + len - 1))
   {
     // SET_BOOT_ADDR(BOARD_AXISRAM_APP_ADDR);
     // handles erasing internally
-    #ifdef IS25LP064A
+    #ifdef GD25Q32C_QSPI
     // flash needs to be erased before writing
-    if (addr % IS25LP064A_SECTOR_SIZE == 0) {
+    if (addr % GD25Q32C_SECTOR_SIZE == 0) {
       // erase 4k sector ahead of next page writes
-      if (CSP_QSPI_EraseSector(addr, addr+IS25LP064A_SECTOR_SIZE) != qspi_OK) {
+      if (gd25q32c_EraseSector(addr) != qspi_OK) {
         TUF2_LOG1("Error erasing sector at address: %lx \r\n",addr);
       }
     }
@@ -310,12 +218,6 @@ void board_flash_erase_app(void)
   TUF2_LOG1("Erasing QSPI Flash\r\n");
   // Erase QSPI Flash
   (void) qspi_EraseChip();
-#endif
-
-#if defined(BOARD_SPI_FLASH_EN) && (BOARD_SPI_FLASH_EN == 1)
-  TUF2_LOG1("Erasing SPI Flash\r\n");
-  // Erase QSPI Flash
-  (void) W25Qx_Erase_Chip();
 #endif
 
   // TODO: Implement PFLASH erase for non-tinyuf2 sectors

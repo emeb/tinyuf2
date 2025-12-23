@@ -94,7 +94,8 @@ static void Error_Handler(void) {
 }
 
 //--------------------------------------------------------------------+
-// RCC Clock
+// RCC Clock - Setup STM32H7R3xx with 400MHz Sysclk from 12Mhz HSE 
+// via PLL1. USB OTG FS gets 32MHz refclk via PLL3.
 //--------------------------------------------------------------------+
 static inline void clock_init(void) {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -160,7 +161,7 @@ static inline void clock_init(void) {
   RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
   RCC_ClkInitStruct.APB5CLKDivider = RCC_APB5_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_7) != HAL_OK)
   {
     Error_Handler();
   }
@@ -186,7 +187,7 @@ static inline void clock_init(void) {
 }
 
 //--------------------------------------------------------------------+
-// QSPI and SPI FLash
+// QSPI Flash via XSPI periph. 
 //--------------------------------------------------------------------+
 
 static inline void qspi_flash_init(XSPI_HandleTypeDef *hxspi) {
@@ -233,21 +234,21 @@ static inline void qspi_flash_init(XSPI_HandleTypeDef *hxspi) {
 	GPIO_InitStruct.Alternate = GPIO_AF9_XSPIM_P1;
 	HAL_GPIO_Init(GPIOO, &GPIO_InitStruct);
 	
-	/* XSPI1 parameter configuration*/
+	/* XSPI1 parameter configuration - timing for GD25Q32C in QSPI */
 	hxspi->Instance = XSPI1;
 	hxspi->Init.FifoThresholdByte = 1;
 	hxspi->Init.MemoryMode = HAL_XSPI_SINGLE_MEM;
 	hxspi->Init.MemoryType = HAL_XSPI_MEMTYPE_APMEM;
 	hxspi->Init.MemorySize = HAL_XSPI_SIZE_32MB;	// bits!
-	hxspi->Init.ChipSelectHighTimeCycle = 2;	// 27ns @ 75MHz (min is 18ns)
+	hxspi->Init.ChipSelectHighTimeCycle = 2;	// 25ns @ 80MHz (min is 18ns)
 	hxspi->Init.FreeRunningClock = HAL_XSPI_FREERUNCLK_DISABLE;
 	hxspi->Init.ClockMode = HAL_XSPI_CLOCK_MODE_0;
 	hxspi->Init.WrapSize = HAL_XSPI_WRAP_NOT_SUPPORTED;
-	hxspi->Init.ClockPrescaler = 4;	// 75MHz (max is 80MHz for single mode)
+	hxspi->Init.ClockPrescaler = 5;	// 80MHz @ 400MHz SYSCLK (max is 80MHz for single mode)
 	hxspi->Init.SampleShifting = HAL_XSPI_SAMPLE_SHIFT_NONE;
 	hxspi->Init.DelayHoldQuarterCycle = HAL_XSPI_DHQC_DISABLE;
 	hxspi->Init.ChipSelectBoundary = HAL_XSPI_BONDARYOF_NONE;
-	hxspi->Init.MaxTran = 225;	// 3us @ 75MHz (max is 3us)
+	hxspi->Init.MaxTran = 240;	// 3us @ 80MHz (max is 3us)
 	hxspi->Init.Refresh = 0;
 	hxspi->Init.MemorySelect = HAL_XSPI_CSSEL_NCS2;
 	if (HAL_XSPI_Init(hxspi) != HAL_OK)

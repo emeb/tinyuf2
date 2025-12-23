@@ -7,10 +7,13 @@
 
 #include <stdint.h>
 
+#define GD25Q32C_SECTOR_SIZE 4096
+
 void      gd25q32c_Init(void);
 uint8_t   gd25q32c_Startup(void);
 uint8_t   gd25q32c_Read(uint8_t *pData, uint32_t ReadAddr, uint32_t Size);
 uint8_t   gd25q32c_Write(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToWrite);
+uint8_t   gd25q32c_EraseSector(uint32_t SectorAddress);
 uint8_t   gd25q32c_EraseChip(void);
 
 #ifdef __cplusplus

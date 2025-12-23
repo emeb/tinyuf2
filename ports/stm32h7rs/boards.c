@@ -28,6 +28,7 @@ void board_init(void)
 #ifndef RAMCODE
   SCB_EnableDCache();
 #endif
+  HAL_Init();
   clock_init();
   SystemCoreClockUpdate();
   SysTick_Config( (SystemCoreClock/1000) );
@@ -36,11 +37,9 @@ void board_init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOE_CLK_ENABLE();
-  __HAL_RCC_GPIOF_CLK_ENABLE();
-  __HAL_RCC_GPIOG_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
+  __HAL_RCC_GPIOM_CLK_ENABLE();
+  __HAL_RCC_GPIOO_CLK_ENABLE();
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   // UART
 #ifdef UART_DEV
@@ -59,6 +58,14 @@ void board_init(void)
   UsartHandle.Init.Parity     = USART_PARITY_NONE;
   UsartHandle.Init.Mode       = USART_MODE_TX_RX;
   HAL_USART_Init(&UsartHandle);
+#if 0
+  /* test if USART is happy */
+  while(1)
+  {
+	const char *msg = "test...\n\r";
+	HAL_USART_Transmit(&UsartHandle, (uint8_t *)msg, sizeof(msg), 0xFFFFFFFFU);
+  }
+#endif  
 #endif
   memset(&GPIO_InitStruct,0,sizeof(GPIO_InitStruct));
 #ifdef BUTTON_PIN
@@ -193,20 +200,15 @@ void board_app_jump(void)
   __HAL_RCC_GPIOA_CLK_DISABLE();
   __HAL_RCC_GPIOB_CLK_DISABLE();
   __HAL_RCC_GPIOC_CLK_DISABLE();
-  __HAL_RCC_GPIOD_CLK_DISABLE();
-  __HAL_RCC_GPIOE_CLK_DISABLE();
-  __HAL_RCC_GPIOF_CLK_DISABLE();
-  __HAL_RCC_GPIOG_CLK_DISABLE();
   __HAL_RCC_GPIOH_CLK_DISABLE();
+  __HAL_RCC_GPIOM_CLK_DISABLE();
+  __HAL_RCC_GPIOO_CLK_DISABLE();
+  __HAL_RCC_GPIOP_CLK_DISABLE();
   // Lotsa GPIOs
 uint8_t allow_rcc_deinit = 1;
 
 // rcc clock needs to be enabled when executing code from external flash
 #if defined(BOARD_QSPI_FLASH_EN) && (BOARD_QSPI_FLASH_EN == 1)
-  allow_rcc_deinit = 0;
-#endif
-
-#if defined(BOARD_SPI_FLASH_EN) && (BOARD_SPI_FLASH_EN == 1)
   allow_rcc_deinit = 0;
 #endif
 
