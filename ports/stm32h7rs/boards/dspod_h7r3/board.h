@@ -180,6 +180,7 @@ static inline void clock_init(void) {
   /** Enable USB Voltage detector
   */
     HAL_PWREx_EnableUSBVoltageDetector();
+	//HAL_PWREx_EnableUSBReg();
 
     /* Peripheral clock enable */
     __HAL_RCC_USB_OTG_FS_CLK_ENABLE();

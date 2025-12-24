@@ -91,20 +91,26 @@ void board_init(void)
 // Configure USB for DFU
 void board_dfu_init(void)
 {
-  // Not quite sure what an RHPORT is :/
 #if defined (BOARD_TUD_RHPORT) && (BOARD_TUD_RHPORT == 0)
+  // Full speed 
+  TUF2_LOG1("board_dfu_init() - here we are in BOARD_TUD_RHPORT == 0\r\n");
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   // Init USB Pins
   // Configure DM DP pins
-  // ID line detection pin has to be initialized, or nothing works
-  // mini-stm32h7 does not have this pin connected to anything
-  GPIO_InitStruct.Pin = GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12;
+  GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_12;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Alternate = GPIO_AF10_OTG_FS;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOM, &GPIO_InitStruct);
+
+  // ID line detection pin has to be initialized, or nothing works
+  // dspod_h7r3 does not have this pin connected to anything
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOM, &GPIO_InitStruct);
 
   // https://community.st.com/s/question/0D50X00009XkYZLSA3/stm32h7-nucleo-usb-fs-cdc
   // TODO: Board init actually works fine without this line.
@@ -112,8 +118,7 @@ void board_dfu_init(void)
   __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
 
   // No VBUS Sensing capabilities on the board
-  // TODO: add a compile switch and Vbus sensing capability
-  // Disable Vbus sense (B device) via pin PA9
+  // Disable Vbus sense (B device) on PM14
   USB_OTG_FS->GCCFG &= ~USB_OTG_GCCFG_VBDEN;
 
   // B-peripheral session valid override enable
@@ -121,7 +126,7 @@ void board_dfu_init(void)
   USB_OTG_FS->GOTGCTL |= USB_OTG_GOTGCTL_BVALOVAL;
 
 #elif defined (BOARD_TUD_RHPORT) && (BOARD_TUD_RHPORT == 1)
-  // TODO: implement whatever this is
+  // High Speed
   #error "Sorry, not implemented yet"
 #endif
 
