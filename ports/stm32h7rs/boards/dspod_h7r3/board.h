@@ -65,10 +65,10 @@ extern "C" {
 #define USB_VID 0x0483
 #define USB_PID 0x5740
 #define USB_MANUFACTURER "STM32"
-#define USB_PRODUCT "STM32FH7R3V8"
+#define USB_PRODUCT "STM32H7R3V8"
 
 #define UF2_PRODUCT_NAME USB_MANUFACTURER " " USB_PRODUCT
-#define UF2_BOARD_ID "STM32FH7R3-dspod"
+#define UF2_BOARD_ID "STM32H7R3-dspod"
 #define UF2_VOLUME_LABEL "H7R3BOOT"
 #define UF2_INDEX_URL "https://github.com/emeb/dspod/tree/main/dspod_h7r3"
 
@@ -95,7 +95,7 @@ static void Error_Handler(void) {
 
 //--------------------------------------------------------------------+
 // RCC Clock - Setup STM32H7R3xx with 400MHz Sysclk from 12Mhz HSE 
-// via PLL1. USB OTG FS gets 32MHz refclk via PLL3.
+// via PLL1. USB OTG FS gets 48MHz refclk via PLL3.
 //--------------------------------------------------------------------+
 static inline void clock_init(void) {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -124,8 +124,8 @@ static inline void clock_init(void) {
   RCC_OscInitStruct.PLL1.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL1.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL1.PLLM = 3;
-  RCC_OscInitStruct.PLL1.PLLN = 200;
-  RCC_OscInitStruct.PLL1.PLLP = 2;
+  RCC_OscInitStruct.PLL1.PLLN = 200;	// 800MHz = 200 * 12 / 3
+  RCC_OscInitStruct.PLL1.PLLP = 2;		// Sysclk = 400MHz = 800 / 2
   RCC_OscInitStruct.PLL1.PLLQ = 2;
   RCC_OscInitStruct.PLL1.PLLR = 2;
   RCC_OscInitStruct.PLL1.PLLS = 2;
@@ -135,9 +135,9 @@ static inline void clock_init(void) {
   RCC_OscInitStruct.PLL3.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL3.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL3.PLLM = 1;
-  RCC_OscInitStruct.PLL3.PLLN = 64;
+  RCC_OscInitStruct.PLL3.PLLN = 64;		// 768MHz = 64 * 12 / 1
   RCC_OscInitStruct.PLL3.PLLP = 2;
-  RCC_OscInitStruct.PLL3.PLLQ = 16;
+  RCC_OscInitStruct.PLL3.PLLQ = 16;		// USB OTG FS Clk = 48MHz = 768 / 16
   RCC_OscInitStruct.PLL3.PLLR = 2;
   RCC_OscInitStruct.PLL3.PLLS = 2;
   RCC_OscInitStruct.PLL3.PLLT = 2;
@@ -180,11 +180,9 @@ static inline void clock_init(void) {
   /** Enable USB Voltage detector
   */
     HAL_PWREx_EnableUSBVoltageDetector();
-	//HAL_PWREx_EnableUSBReg();
 
     /* Peripheral clock enable */
     __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
-    //__HAL_RCC_USBPHYC_CLK_ENABLE();
 }
 
 //--------------------------------------------------------------------+

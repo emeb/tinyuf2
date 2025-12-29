@@ -9,8 +9,13 @@ CFLAGS += \
   -D$(QSPI_FLASH)\
   -DBOARD_FLASH_APP_START=0x90000000 \
   -DTRAP_EXC \
-  -DBOARD_TUD_MAX_SPEED=OPT_MODE_FULL_SPEED \
-  
+  -DBOARD_HIGHSPEED=0 \
+
+#
+# Need to tweak tinyusb/src/common/tusb_mcu.h line 323 with this:
+#  #define TUP_RHPORT_HIGHSPEED    BOARD_HIGHSPEED
+# to enable switching full/high speed
+
 MCU = h7r3xx
 
 LOG = 0
