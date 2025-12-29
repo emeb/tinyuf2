@@ -137,7 +137,7 @@ static inline void clock_init(void) {
   RCC_OscInitStruct.PLL3.PLLM = 1;
   RCC_OscInitStruct.PLL3.PLLN = 64;
   RCC_OscInitStruct.PLL3.PLLP = 2;
-  RCC_OscInitStruct.PLL3.PLLQ = 32;
+  RCC_OscInitStruct.PLL3.PLLQ = 16;
   RCC_OscInitStruct.PLL3.PLLR = 2;
   RCC_OscInitStruct.PLL3.PLLS = 2;
   RCC_OscInitStruct.PLL3.PLLT = 2;
@@ -184,7 +184,7 @@ static inline void clock_init(void) {
 
     /* Peripheral clock enable */
     __HAL_RCC_USB_OTG_FS_CLK_ENABLE();
-    __HAL_RCC_USBPHYC_CLK_ENABLE();
+    //__HAL_RCC_USBPHYC_CLK_ENABLE();
 }
 
 //--------------------------------------------------------------------+
