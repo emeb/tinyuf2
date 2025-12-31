@@ -1,6 +1,7 @@
 #include "gd25q32c_qspi.h"
 #include "qspi_status.h"
 #include "stm32h7rsxx_hal.h"
+#include "board_api.h"
 
 /* =============== GD25Qxx CMD ================ */
 #define GD25X_WriteEnable         0x06
@@ -52,8 +53,10 @@ uint8_t gd25q32c_StatusReg[3];
   */
 static uint8_t XSPI_EnableMemoryMappedMode(XSPI_HandleTypeDef *hqspi)
 {
+	TUF2_LOG1("XSPI_EnableMemoryMappedMode()\r\n");
+	
 	/* from EMEB's known-working code */
-	XSPI_RegularCmdTypeDef   sCommand;
+	XSPI_RegularCmdTypeDef   sCommand = {0};
 	XSPI_MemoryMappedTypeDef sMemMappedCfg;
 
 	/* set write & read ops & turn on mem mapped mode */
@@ -74,8 +77,10 @@ static uint8_t XSPI_EnableMemoryMappedMode(XSPI_HandleTypeDef *hqspi)
 	sCommand.DQSMode            = HAL_XSPI_DQS_ENABLE; // ERRATUM 2.4.1
 	if (HAL_XSPI_Command(hqspi, &sCommand, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
 	{
+		TUF2_LOG1("\tHAL_XSPI_Command() WRITE_CFG error = %lu\r\n", hqspi->ErrorCode);
 		return qspi_ERROR;
 	}
+	TUF2_LOG1("\tHAL_XSPI_Command() WRITE_CFG OK\r\n");
 	
 	/* set read ops & turn on mem mapped mode */
 	sCommand.OperationType		= HAL_XSPI_OPTYPE_READ_CFG;
@@ -84,19 +89,20 @@ static uint8_t XSPI_EnableMemoryMappedMode(XSPI_HandleTypeDef *hqspi)
 	sCommand.DQSMode            = HAL_XSPI_DQS_DISABLE;	// return to correct value
 	if (HAL_XSPI_Command(hqspi, &sCommand, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
 	{
+		TUF2_LOG1("\tHAL_XSPI_Command() READ_CFG error = %lu\r\n", hqspi->ErrorCode);
 		return qspi_ERROR;
 	}
+	TUF2_LOG1("\tHAL_XSPI_Command() READ_CFG OK\r\n");
 
 	sMemMappedCfg.TimeOutActivation = HAL_XSPI_TIMEOUT_COUNTER_ENABLE;
 	sMemMappedCfg.TimeoutPeriodClock      = 0x34;
 	if (HAL_XSPI_MemoryMapped(hqspi, &sMemMappedCfg) != HAL_OK)
 	{
+		TUF2_LOG1("\tHAL_XSPI_MemoryMapped() error = %lu\r\n", hqspi->ErrorCode);
 		return qspi_ERROR;
 	}
-	
-	/* wait a bit for things to settle */
-	HAL_Delay(1);
-	
+	TUF2_LOG1("\tHAL_XSPI_MemoryMapped() OK\r\n");
+		
 	return qspi_OK;
 }
 
@@ -117,7 +123,7 @@ static uint8_t XSPI_Send_CMD(XSPI_HandleTypeDef *hqspi, uint32_t instruction,
 	uint32_t address, uint32_t dummyCycles, uint32_t addressMode,
 	uint32_t dataMode, uint32_t dataSize)
 {
-    XSPI_RegularCmdTypeDef Cmdhandler;
+    XSPI_RegularCmdTypeDef Cmdhandler = {0};
 
 	Cmdhandler.OperationType      = HAL_XSPI_OPTYPE_COMMON_CFG;
     Cmdhandler.Instruction        = instruction;
@@ -243,10 +249,13 @@ static uint8_t XSPI_ReadAllStatusReg(void)
   */
 static void XSPI_Wait_Busy(void)
 {
-	uint8_t status = GD25X_SR_WIP;
+	uint8_t status;
+	
+	XSPI_ReadSR(GD25X_ReadStatusReg1, &status);
 	
 	while((status & GD25X_SR_WIP) == GD25X_SR_WIP)
 	{
+		HAL_Delay(1);
 		XSPI_ReadSR(GD25X_ReadStatusReg1, &status);
 	}
 }
@@ -257,19 +266,30 @@ static void XSPI_Wait_Busy(void)
   */
 void gd25q32c_Init(void)
 {
+	TUF2_LOG1("gd25q32c_Init()\r\n");
+
 	XSPI_ResetDevice(&hxspi1);
 	HAL_Delay(0); // 1ms wait device stable
 	XSPI_ReadAllStatusReg();
 	
+	TUF2_LOG1("\t SR1 = 0x%02X\r\n", gd25q32c_StatusReg[0]);
+	TUF2_LOG1("\t SR2 = 0x%02X\r\n", gd25q32c_StatusReg[1]);
+	TUF2_LOG1("\t SR3 = 0x%02X\r\n", gd25q32c_StatusReg[2]);
+	
 	/* check if QE bit set and enable if not */
 	if((gd25q32c_StatusReg[1] & 0x02) != 0x02)
 	{
+		TUF2_LOG1("\tSetting QE bit\r\n");
 		uint8_t data = gd25q32c_StatusReg[1] | 0x02;
 		XSPI_WriteEnable(&hxspi1);
 		XSPI_Send_CMD(&hxspi1, GD25X_WriteStatusReg2, 0x00, 0,
 			HAL_XSPI_ADDRESS_NONE, HAL_XSPI_DATA_1_LINE, 1);
 		HAL_XSPI_Transmit(&hxspi1, &data, HAL_XSPI_TIMEOUT_DEFAULT_VALUE);
 		XSPI_Wait_Busy();
+	}
+	else
+	{
+		TUF2_LOG1("QE bit already set\r\n");
 	}
 }
 
@@ -279,9 +299,23 @@ void gd25q32c_Init(void)
   */
 uint8_t gd25q32c_Startup(void)
 {
+	TUF2_LOG1("gd25q32c_Startup()...\n\r");
+	
 	/* Enable MemoryMapped mode */
 	if( XSPI_EnableMemoryMappedMode(&hxspi1) != qspi_OK )
+	{
+		TUF2_LOG1("\tFailed\n\r");
 		return qspi_ERROR;
+	}
+	
+	TUF2_LOG1("\tOK\n\r");
+
+	TUF2_LOG1("\ttest read: ");
+	uint8_t *pData = (uint8_t *)0x90000000;
+	for(int i=0;i<8;i++)
+		TUF2_LOG1("%02X ", pData[i]);
+	TUF2_LOG1("\n\r");
+	
 	return qspi_OK;
 }
 
@@ -294,13 +328,23 @@ uint8_t gd25q32c_Startup(void)
   */
 uint8_t gd25q32c_Read(uint8_t *pData, uint32_t ReadAddr, uint32_t Size)
 {
+	TUF2_LOG1("gd25q32c_Read() %lu bytes at 0x%08lX\r\n", Size, ReadAddr);
 	if(XSPI_Send_CMD(&hxspi1, GD25X_QUAD_INOUT_FAST_READ_CMD,
 		ReadAddr, GD25X_DUMMY_CYCLES_READ_QUAD,
 		HAL_XSPI_ADDRESS_4_LINES, HAL_XSPI_DATA_4_LINES, Size) != qspi_OK)
+	{
 		return qspi_ERROR;
+	}
 
 	if(HAL_XSPI_Receive(&hxspi1, pData, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
+	{
 		return qspi_ERROR;
+	}
+	
+	TUF2_LOG1("\t");
+	for(int i=0;i<8;i++)
+		TUF2_LOG1("%02X ", pData[i]);
+	TUF2_LOG1("\n\r");
 	
 	return qspi_OK;
 }
@@ -314,6 +358,7 @@ uint8_t gd25q32c_Read(uint8_t *pData, uint32_t ReadAddr, uint32_t Size)
   */
 uint8_t gd25q32c_PageProgram(uint8_t *pData, uint32_t WriteAddr, uint32_t Size)
 {
+	TUF2_LOG1("gd25q32c_PageProgram()\r\n");
 	if(XSPI_WriteEnable(&hxspi1) != qspi_OK)
 		return qspi_ERROR;
 	
@@ -338,8 +383,10 @@ uint8_t gd25q32c_PageProgram(uint8_t *pData, uint32_t WriteAddr, uint32_t Size)
   */
 uint8_t gd25q32c_Write(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToWrite)
 {
+	TUF2_LOG1("gd25q32c_Write()\r\n");
 	uint32_t end_addr = 0, current_size = 0, current_addr = 0;
-
+	uint8_t tstbuf[8];
+	
 	/* 
 	 * Calculation of the size between the write address and the end of the page
 	 */
@@ -367,11 +414,15 @@ uint8_t gd25q32c_Write(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToW
 	current_addr = WriteAddr;
 	end_addr = WriteAddr + NumByteToWrite;
 
+	gd25q32c_Read(tstbuf, WriteAddr, 8);
+
 	/* Perform the write page by page */
 	do
 	{
 		if (current_size == 0)
 		{
+			gd25q32c_Read(tstbuf, WriteAddr, 8);
+
 			return qspi_OK;
 		}
 		
@@ -390,6 +441,8 @@ uint8_t gd25q32c_Write(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToW
 	}
 	while (current_addr <= end_addr);
 
+	gd25q32c_Read(tstbuf, WriteAddr, 8);
+	
 	return qspi_OK;
 }
 
@@ -400,11 +453,14 @@ uint8_t gd25q32c_Write(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToW
   */
 uint8_t gd25q32c_EraseSector(uint32_t SectorAddress)
 {
+	/* mask off to max addr of flash chip */
+	SectorAddress &= (BOARD_QSPI_FLASH_SIZE-1);
+	
+	TUF2_LOG1("gd25q32c_EraseSector() SectorAddress = 0x%08lX\r\n", SectorAddress);
+
 	if(XSPI_WriteEnable(&hxspi1) != qspi_OK)
 		return qspi_ERROR;
 	
-	XSPI_Wait_Busy();
-
 	if(XSPI_Send_CMD(&hxspi1, GD25X_SectorErase, SectorAddress, 0,
 		HAL_XSPI_ADDRESS_1_LINE, HAL_XSPI_DATA_NONE, 0) != qspi_OK)
 		return qspi_ERROR;
@@ -420,6 +476,7 @@ uint8_t gd25q32c_EraseSector(uint32_t SectorAddress)
   */
 uint8_t gd25q32c_EraseChip(void)
 {
+	TUF2_LOG1("gd25q32c_EraseChip()\r\n");
 	if(XSPI_WriteEnable(&hxspi1) != qspi_OK)
 		return qspi_ERROR;
 	

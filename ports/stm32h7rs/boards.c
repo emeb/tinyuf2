@@ -40,6 +40,7 @@ void board_init(void)
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOM_CLK_ENABLE();
   __HAL_RCC_GPIOO_CLK_ENABLE();
+  __HAL_RCC_GPIOP_CLK_ENABLE();
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   // UART
 #ifdef UART_DEV
@@ -194,6 +195,11 @@ void board_app_jump(void)
   uint32_t app_addr = board_get_app_start_address();
   volatile uint32_t const * app_vector = (volatile uint32_t const *) app_addr;
 
+  TUF2_LOG1("VT addr: %08lx\r\n", app_addr);
+  TUF2_LOG1("App vector: %08lx\r\n", app_vector[1]);
+	
+  //HAL_Delay(10);
+	
 #ifdef BUTTON_PIN
   HAL_GPIO_DeInit(BUTTON_PORT, BUTTON_PIN);
 #endif
@@ -207,8 +213,10 @@ void board_app_jump(void)
   __HAL_RCC_GPIOC_CLK_DISABLE();
   __HAL_RCC_GPIOH_CLK_DISABLE();
   __HAL_RCC_GPIOM_CLK_DISABLE();
-  __HAL_RCC_GPIOO_CLK_DISABLE();
-  __HAL_RCC_GPIOP_CLK_DISABLE();
+	
+  //__HAL_RCC_GPIOO_CLK_DISABLE();
+  //__HAL_RCC_GPIOP_CLK_DISABLE();
+  
   // Lotsa GPIOs
 uint8_t allow_rcc_deinit = 1;
 

@@ -87,6 +87,7 @@ void board_clear_temp_boot_addr(void)
 void board_flash_early_init(void)
 {
 #if defined (BOARD_QSPI_FLASH_EN) && (BOARD_QSPI_FLASH_EN == 1)
+  TUF2_LOG1("board_flash_early_init()\r\n");
   // QSPI is initialized early to check for executable code
   qspi_flash_init(&hxspi1);
   // Initialize QSPI driver
@@ -98,6 +99,7 @@ void board_flash_early_init(void)
 
 void board_flash_init(void)
 {
+  TUF2_LOG1("board_flash_init() - currently does nothing.\r\n");
 }
 
 void board_flash_deinit(void)
@@ -105,6 +107,7 @@ void board_flash_deinit(void)
 #if defined (BOARD_QSPI_FLASH_EN) && (BOARD_QSPI_FLASH_EN == 1)
   // Enable Memory Mapped Mode
   // QSPI flash will be available at 0x90000000U (readonly)
+  TUF2_LOG1("board_flash_deinit()\r\n");
   qspi_Startup();
 #endif // BOARD_QSPI_FLASH_EN
 }
@@ -169,12 +172,14 @@ bool board_flash_write(uint32_t addr, void const * data, uint32_t len)
     #ifdef GD25Q32C_QSPI
     // flash needs to be erased before writing
     if (addr % GD25Q32C_SECTOR_SIZE == 0) {
+		TUF2_LOG1("Erasing\r\n");
       // erase 4k sector ahead of next page writes
       if (gd25q32c_EraseSector(addr) != qspi_OK) {
         TUF2_LOG1("Error erasing sector at address: %lx \r\n",addr);
       }
     }
     #endif
+	TUF2_LOG1("Writing\r\n");
     if (qspi_Write((uint8_t *)data, (addr - QSPI_BASE_ADDR), len) != qspi_OK)
     {
       TUF2_LOG1("Error QSPI Flash write\r\n");
@@ -212,6 +217,7 @@ bool board_flash_write(uint32_t addr, void const * data, uint32_t len)
 
 void board_flash_erase_app(void)
 {
+  TUF2_LOG1("board_flash_erase_app()\r\n");
   board_flash_init();
 
 #if defined (BOARD_QSPI_FLASH_EN) && (BOARD_QSPI_FLASH_EN == 1)
