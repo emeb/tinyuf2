@@ -111,7 +111,7 @@ static inline void clock_init(void) {
 
   /** Configure the main internal regulator output voltage
   */
-  if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
+  if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE0) != HAL_OK)
   {
     Error_Handler();
   }
@@ -124,8 +124,8 @@ static inline void clock_init(void) {
   RCC_OscInitStruct.PLL1.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL1.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL1.PLLM = 3;
-  RCC_OscInitStruct.PLL1.PLLN = 200;	// 800MHz = 200 * 12 / 3
-  RCC_OscInitStruct.PLL1.PLLP = 2;		// Sysclk = 400MHz = 800 / 2
+  RCC_OscInitStruct.PLL1.PLLN = 300;	// 1200MHz = 300 * 12 / 3
+  RCC_OscInitStruct.PLL1.PLLP = 2;		// Sysclk = 600MHz = 1200 / 2
   RCC_OscInitStruct.PLL1.PLLQ = 2;
   RCC_OscInitStruct.PLL1.PLLR = 2;
   RCC_OscInitStruct.PLL1.PLLS = 2;
@@ -239,15 +239,15 @@ static inline void qspi_flash_init(XSPI_HandleTypeDef *hxspi) {
 	hxspi->Init.MemoryMode = HAL_XSPI_SINGLE_MEM;
 	hxspi->Init.MemoryType = HAL_XSPI_MEMTYPE_APMEM;
 	hxspi->Init.MemorySize = HAL_XSPI_SIZE_32MB;	// bits!
-	hxspi->Init.ChipSelectHighTimeCycle = 2;	// 25ns @ 80MHz (min is 18ns)
+	hxspi->Init.ChipSelectHighTimeCycle = 2;	// 26.6ns @ 75MHz (min is 18ns)
 	hxspi->Init.FreeRunningClock = HAL_XSPI_FREERUNCLK_DISABLE;
 	hxspi->Init.ClockMode = HAL_XSPI_CLOCK_MODE_0;
 	hxspi->Init.WrapSize = HAL_XSPI_WRAP_NOT_SUPPORTED;
-	hxspi->Init.ClockPrescaler = 5;	// 80MHz @ 400MHz SYSCLK (max is 80MHz for single mode)
+	hxspi->Init.ClockPrescaler = 8;	// 75MHz @ 600MHz SYSCLK (max is 80MHz for single mode)
 	hxspi->Init.SampleShifting = HAL_XSPI_SAMPLE_SHIFT_NONE;
 	hxspi->Init.DelayHoldQuarterCycle = HAL_XSPI_DHQC_DISABLE;
 	hxspi->Init.ChipSelectBoundary = HAL_XSPI_BONDARYOF_NONE;
-	hxspi->Init.MaxTran = 240;	// 3us @ 80MHz (max is 3us)
+	hxspi->Init.MaxTran = 225;	// 3us @ 25MHz (max is 3us)
 	hxspi->Init.Refresh = 0;
 	hxspi->Init.MemorySelect = HAL_XSPI_CSSEL_NCS2;
 	if (HAL_XSPI_Init(hxspi) != HAL_OK)

@@ -53,8 +53,6 @@ uint8_t gd25q32c_StatusReg[3];
   */
 static uint8_t XSPI_EnableMemoryMappedMode(XSPI_HandleTypeDef *hqspi)
 {
-	TUF2_LOG1("XSPI_EnableMemoryMappedMode()\r\n");
-	
 	/* from EMEB's known-working code */
 	XSPI_RegularCmdTypeDef   sCommand = {0};
 	XSPI_MemoryMappedTypeDef sMemMappedCfg;
@@ -77,10 +75,8 @@ static uint8_t XSPI_EnableMemoryMappedMode(XSPI_HandleTypeDef *hqspi)
 	sCommand.DQSMode            = HAL_XSPI_DQS_ENABLE; // ERRATUM 2.4.1
 	if (HAL_XSPI_Command(hqspi, &sCommand, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
 	{
-		TUF2_LOG1("\tHAL_XSPI_Command() WRITE_CFG error = %lu\r\n", hqspi->ErrorCode);
 		return qspi_ERROR;
 	}
-	TUF2_LOG1("\tHAL_XSPI_Command() WRITE_CFG OK\r\n");
 	
 	/* set read ops & turn on mem mapped mode */
 	sCommand.OperationType		= HAL_XSPI_OPTYPE_READ_CFG;
@@ -89,19 +85,15 @@ static uint8_t XSPI_EnableMemoryMappedMode(XSPI_HandleTypeDef *hqspi)
 	sCommand.DQSMode            = HAL_XSPI_DQS_DISABLE;	// return to correct value
 	if (HAL_XSPI_Command(hqspi, &sCommand, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
 	{
-		TUF2_LOG1("\tHAL_XSPI_Command() READ_CFG error = %lu\r\n", hqspi->ErrorCode);
 		return qspi_ERROR;
 	}
-	TUF2_LOG1("\tHAL_XSPI_Command() READ_CFG OK\r\n");
 
 	sMemMappedCfg.TimeOutActivation = HAL_XSPI_TIMEOUT_COUNTER_ENABLE;
 	sMemMappedCfg.TimeoutPeriodClock      = 0x34;
 	if (HAL_XSPI_MemoryMapped(hqspi, &sMemMappedCfg) != HAL_OK)
 	{
-		TUF2_LOG1("\tHAL_XSPI_MemoryMapped() error = %lu\r\n", hqspi->ErrorCode);
 		return qspi_ERROR;
 	}
-	TUF2_LOG1("\tHAL_XSPI_MemoryMapped() OK\r\n");
 		
 	return qspi_OK;
 }
@@ -160,34 +152,6 @@ static uint8_t XSPI_Send_CMD(XSPI_HandleTypeDef *hqspi, uint32_t instruction,
   */
 static uint8_t XSPI_ResetDevice(XSPI_HandleTypeDef *hqspi)
 {
-#if 0
-	XSPI_RegularCmdTypeDef s_command;
-
-	/* Initialize the reset enable command */
-	s_command.OperationType     = HAL_XSPI_OPTYPE_COMMON_CFG;
-	s_command.InstructionMode   = HAL_XSPI_INSTRUCTION_1_LINE;
-	s_command.Instruction       = GD25X_EnableReset;
-	s_command.AddressMode       = HAL_XSPI_ADDRESS_NONE;
-	s_command.AlternateBytesMode = HAL_XSPI_ALT_BYTES_NONE;
-	s_command.DataMode          = HAL_XSPI_DATA_NONE;
-	s_command.DummyCycles       = 0;
-	s_command.DQSMode           = HAL_XSPI_DQS_DISABLE;
-
-	/* Send the command */
-	if (HAL_XSPI_Command(hqspi, &s_command, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
-	{
-		return qspi_ERROR;
-	}
-
-	/* Send the reset device command */
-	s_command.Instruction = GD25X_ResetDevice;
-	if (HAL_XSPI_Command(hqspi, &s_command, HAL_XSPI_TIMEOUT_DEFAULT_VALUE) != HAL_OK)
-	{
-		return qspi_ERROR;
-	}
-
-	return qspi_OK;
-#else
 	if(XSPI_Send_CMD(hqspi, GD25X_EnableReset, 0, 0,
 		HAL_XSPI_ADDRESS_NONE, HAL_XSPI_DATA_NONE, 0) != qspi_OK)
 		return qspi_ERROR;
@@ -197,7 +161,6 @@ static uint8_t XSPI_ResetDevice(XSPI_HandleTypeDef *hqspi)
 		return qspi_ERROR;
 	
 	return qspi_OK;
-#endif
 }
 
 /**
@@ -272,10 +235,6 @@ void gd25q32c_Init(void)
 	HAL_Delay(0); // 1ms wait device stable
 	XSPI_ReadAllStatusReg();
 	
-	TUF2_LOG1("\t SR1 = 0x%02X\r\n", gd25q32c_StatusReg[0]);
-	TUF2_LOG1("\t SR2 = 0x%02X\r\n", gd25q32c_StatusReg[1]);
-	TUF2_LOG1("\t SR3 = 0x%02X\r\n", gd25q32c_StatusReg[2]);
-	
 	/* check if QE bit set and enable if not */
 	if((gd25q32c_StatusReg[1] & 0x02) != 0x02)
 	{
@@ -286,10 +245,6 @@ void gd25q32c_Init(void)
 			HAL_XSPI_ADDRESS_NONE, HAL_XSPI_DATA_1_LINE, 1);
 		HAL_XSPI_Transmit(&hxspi1, &data, HAL_XSPI_TIMEOUT_DEFAULT_VALUE);
 		XSPI_Wait_Busy();
-	}
-	else
-	{
-		TUF2_LOG1("QE bit already set\r\n");
 	}
 }
 
@@ -304,18 +259,9 @@ uint8_t gd25q32c_Startup(void)
 	/* Enable MemoryMapped mode */
 	if( XSPI_EnableMemoryMappedMode(&hxspi1) != qspi_OK )
 	{
-		TUF2_LOG1("\tFailed\n\r");
 		return qspi_ERROR;
 	}
-	
-	TUF2_LOG1("\tOK\n\r");
 
-	TUF2_LOG1("\ttest read: ");
-	uint8_t *pData = (uint8_t *)0x90000000;
-	for(int i=0;i<8;i++)
-		TUF2_LOG1("%02X ", pData[i]);
-	TUF2_LOG1("\n\r");
-	
 	return qspi_OK;
 }
 
@@ -328,7 +274,7 @@ uint8_t gd25q32c_Startup(void)
   */
 uint8_t gd25q32c_Read(uint8_t *pData, uint32_t ReadAddr, uint32_t Size)
 {
-	TUF2_LOG1("gd25q32c_Read() %lu bytes at 0x%08lX\r\n", Size, ReadAddr);
+	TUF2_LOG1("gd25q32c_Read()\r\n");
 	if(XSPI_Send_CMD(&hxspi1, GD25X_QUAD_INOUT_FAST_READ_CMD,
 		ReadAddr, GD25X_DUMMY_CYCLES_READ_QUAD,
 		HAL_XSPI_ADDRESS_4_LINES, HAL_XSPI_DATA_4_LINES, Size) != qspi_OK)
@@ -340,11 +286,6 @@ uint8_t gd25q32c_Read(uint8_t *pData, uint32_t ReadAddr, uint32_t Size)
 	{
 		return qspi_ERROR;
 	}
-	
-	TUF2_LOG1("\t");
-	for(int i=0;i<8;i++)
-		TUF2_LOG1("%02X ", pData[i]);
-	TUF2_LOG1("\n\r");
 	
 	return qspi_OK;
 }
@@ -385,21 +326,11 @@ uint8_t gd25q32c_Write(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToW
 {
 	TUF2_LOG1("gd25q32c_Write()\r\n");
 	uint32_t end_addr = 0, current_size = 0, current_addr = 0;
-	uint8_t tstbuf[8];
 	
 	/* 
 	 * Calculation of the size between the write address and the end of the page
 	 */
-#if 0
-	 /* this is an inefficient approach from the is25lp064 driver */
-	while (current_addr <= WriteAddr)
-	{
-		current_addr += 256;
-	}
-#else
-	/* this should be quicker */
 	current_addr = (WriteAddr & ~0xff) + 256;
-#endif
 	current_size = current_addr - WriteAddr;
 
 	/*
@@ -414,15 +345,11 @@ uint8_t gd25q32c_Write(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToW
 	current_addr = WriteAddr;
 	end_addr = WriteAddr + NumByteToWrite;
 
-	gd25q32c_Read(tstbuf, WriteAddr, 8);
-
 	/* Perform the write page by page */
 	do
 	{
 		if (current_size == 0)
 		{
-			gd25q32c_Read(tstbuf, WriteAddr, 8);
-
 			return qspi_OK;
 		}
 		
@@ -440,8 +367,6 @@ uint8_t gd25q32c_Write(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToW
 						   : 256;
 	}
 	while (current_addr <= end_addr);
-
-	gd25q32c_Read(tstbuf, WriteAddr, 8);
 	
 	return qspi_OK;
 }
