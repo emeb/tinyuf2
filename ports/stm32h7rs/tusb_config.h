@@ -43,9 +43,10 @@
 // Enable Device stack
 #define CFG_TUD_ENABLED          1
 
-#ifndef BOARD_TUD_RHPORT
-#define BOARD_TUD_RHPORT         0
-#endif
+// board.h sets this later - don't set here
+//#ifndef BOARD_TUD_RHPORT
+//#define BOARD_TUD_RHPORT         1
+//#endif
 
 // can be defined by compiler in DEBUG build
 #ifndef CFG_TUSB_DEBUG

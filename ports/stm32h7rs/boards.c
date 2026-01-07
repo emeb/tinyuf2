@@ -98,7 +98,7 @@ void board_dfu_init(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   // Init USB Pins
-  // Configure DM DP pins
+  // Configure FS PHY DM DP pins
   GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_12;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
@@ -128,9 +128,33 @@ void board_dfu_init(void)
 
 #elif defined (BOARD_TUD_RHPORT) && (BOARD_TUD_RHPORT == 1)
   // High Speed
-  #error "Sorry, not implemented yet"
-#endif
+  TUF2_LOG1("board_dfu_init() - here we are in BOARD_TUD_RHPORT == 1\r\n");
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
 
+  // Init USB Pins
+  // Configure HS PHY DM DP pins
+  GPIO_InitStruct.Pin = GPIO_PIN_5 | GPIO_PIN_6;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Alternate = GPIO_AF10_OTG_HS;
+  HAL_GPIO_Init(GPIOM, &GPIO_InitStruct);
+  
+  // Enable USB HS & ULPI Clocks
+  __HAL_RCC_USB_OTG_HS_CLK_ENABLE();
+  __HAL_RCC_USBPHYC_CLK_ENABLE();
+
+  // Enable USB power
+  HAL_PWREx_EnableUSBVoltageDetector();
+  HAL_PWREx_EnableUSBHSregulator();
+
+  // Disable VBUS sense (B device)
+  USB_OTG_HS->GCCFG &= ~USB_OTG_GCCFG_VBDEN;
+
+  // B-peripheral session valid override enable
+  USB_OTG_HS->GCCFG |= USB_OTG_GCCFG_VBVALEXTOEN;
+  USB_OTG_HS->GCCFG |= USB_OTG_GCCFG_VBVALOVAL;
+#endif
 }
 
 void board_reset(void)
